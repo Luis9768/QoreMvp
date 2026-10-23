@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing & Artifacts
+coverage/
+*.webm
+*.png
+backend/wwwroot/evidencias/*
+!backend/wwwroot/evidencias/.gitkeep
+
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# .NET / C# build output
+bin/
+obj/
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+_ReSharper*/
+
+# Databases & local data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+qaplatform_local.db*
+
+# Environment files & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+appsettings.local.json
+backend/appsettings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log

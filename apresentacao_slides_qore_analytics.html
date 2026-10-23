@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Qore Analytics — Apresentação Executiva</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #090d16;
+      color: #f1f5f9;
+      overflow: hidden;
+    }
+    
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .slide {
+      display: none;
+      opacity: 0;
+      transform: scale(0.98);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .slide.active {
+      display: flex;
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .glass-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between selection:bg-purple-500 selection:text-white">
+
+  <!-- Barra Superior de Navegação -->
+  <header class="px-8 py-4 border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md flex items-center justify-between z-50">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-purple-500/30">
+        Q
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight text-white flex items-center gap-2">
+          Qore Analytics <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold">Motor Quantum AI</span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- Indicador de Slide e Controles -->
+    <div class="flex items-center gap-4">
+      <span id="slideCounter" class="text-xs font-mono text-slate-400 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800">
+        Slide 1 / 12
+      </span>
+      <button onclick="toggleSpeakerNotes()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition-colors border border-slate-700">
+        🎙️ O que Falar
+      </button>
+      <div class="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+        <button onclick="prevSlide()" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <button onclick="nextSlide()" class="p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Barra de Progresso Superior -->
+  <div class="w-full bg-slate-900 h-1">
+    <div id="progressBar" class="bg-gradient-to-r from-purple-500 to-indigo-500 h-full transition-all duration-300" style="width: 8.33%;"></div>
+  </div>
+
+  <!-- Área Central de Apresentação (Slides) -->
+  <main class="flex-1 flex items-center justify-center p-8 max-w-6xl mx-auto w-full relative">
+
+    <!-- SLIDE 1: Capa -->
+    <div class="slide active flex-col items-center justify-center text-center space-y-6 w-full">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-950/80 border border-purple-700/60 text-purple-300 text-xs font-semibold uppercase tracking-wider">
+        ✨ Apresentação Oficial do Produto
+      </div>
+      <h2 class="text-5xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-purple-300 bg-clip-text text-transparent">
+        Qore Analytics
+      </h2>
+      <p class="text-2xl font-semibold text-purple-400">
+        Garantia de Qualidade Inteligente com a IA Quantum
+      </p>
+      <p class="text-base text-slate-400 max-w-2xl leading-relaxed">
+        A plataforma que analisa seu código no GitHub, entende o que foi modificado e testa suas aplicações web de forma totalmente autônoma.
+      </p>
+      <div class="pt-6 flex items-center gap-4 text-xs text-slate-500 font-mono">
+        <span>Use ⬅️ ➡️ no teclado ou clique nas setas para navegar</span>
+      </div>
+    </div>
+
+    <!-- SLIDE 2: O Problema -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-rose-400">O Desafio</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        Por que testar software ainda é tão lento e manual?
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+        <div class="glass-card p-6 rounded-2xl space-y-3">
+          <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 text-2xl">⏳</div>
+          <h3 class="text-lg font-bold text-white">Processo Manual</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">QAs gastam dias preenchendo planilhas manuais de casos de teste antes de cada lançamento.</p>
+        </div>
+        <div class="glass-card p-6 rounded-2xl space-y-3">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-2xl">🙈</div>
+          <h3 class="text-lg font-bold text-white">Testes "No Escuro"</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">Quando o programador altera o código, ninguém sabe com precisão cirúrgica quais telas foram afetadas.</p>
+        </div>
+        <div class="glass-card p-6 rounded-2xl space-y-3">
+          <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 text-2xl">💸</div>
+          <h3 class="text-lg font-bold text-white">Bugs Caros em Produção</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">Erros não previstos chegam aos clientes finais, gerando insatisfação e prejuízo financeiro.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 3: O Abismo da Comunicação -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-amber-400">O Conflito Diário</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        O Famoso: <span class="text-amber-400">"Na minha máquina funciona!"</span>
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        <div class="glass-card p-6 rounded-2xl space-y-4">
+          <h3 class="text-lg font-bold text-rose-300 flex items-center gap-2">❌ Sem Evidências Claras</h3>
+          <ul class="text-xs text-slate-300 space-y-2.5 leading-relaxed">
+            <li>• Prints soltos tirados no segundo errado não provam onde o bug ocorreu.</li>
+            <li>• Dificuldade para o desenvolvedor reproduzir exatamente o mesmo erro.</li>
+            <li>• Reuniões longas e desgastantes entre times de QA e Produto.</li>
+          </ul>
+        </div>
+        <div class="glass-card p-6 rounded-2xl space-y-4 border-emerald-800/40">
+          <h3 class="text-lg font-bold text-emerald-300 flex items-center gap-2">✅ O que o Mercado Precisa</h3>
+          <ul class="text-xs text-slate-300 space-y-2.5 leading-relaxed">
+            <li>• Vídeo gravado em tempo real de cada clique e resposta da tela.</li>
+            <li>• Fotos comprovando o estado exato de antes e depois de cada ação.</li>
+            <li>• Rastreabilidade total: do código-fonte no Git até o clique no navegador.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 4: A Solução -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-purple-400">A Revolução</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        Apresentando o <span class="text-purple-400">Qore Analytics</span> & a <span class="text-indigo-400">IA Quantum</span>
+      </h2>
+      <p class="text-sm text-slate-300 max-w-3xl leading-relaxed">
+        Uma plataforma fullstack que atua como um <strong>engenheiro de testes sênior autônomo</strong>. A inteligência artificial <strong>Quantum</strong> analisa o software, deduz as regras de negócio e gera planos de ação em segundos.
+      </p>
+      <div class="grid grid-cols-3 gap-4 pt-4">
+        <div class="glass-card p-5 rounded-xl text-center space-y-2">
+          <div class="text-2xl">🧠</div>
+          <div class="font-bold text-sm text-white">IA Quantum</div>
+          <div class="text-xs text-slate-400">Raciocínio analítico sobre código e comportamentos</div>
+        </div>
+        <div class="glass-card p-5 rounded-xl text-center space-y-2">
+          <div class="text-2xl">⚡</div>
+          <div class="font-bold text-sm text-white">Zero Configuração</div>
+          <div class="text-xs text-slate-400">Funciona direto com a URL do site ou do GitHub</div>
+        </div>
+        <div class="glass-card p-5 rounded-xl text-center space-y-2">
+          <div class="text-2xl">🎯</div>
+          <div class="font-bold text-sm text-white">Foco Cirúrgico</div>
+          <div class="text-xs text-slate-400">Testa exatamente o que mudou na entrega recente</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 5: Os Dois Pilares -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-purple-400">Estrutura da Plataforma</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        Uma Solução com Dois Superpoderes
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        <div class="glass-card p-6 rounded-2xl border-purple-500/40 space-y-3">
+          <span class="text-xs font-mono uppercase px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700">Pilar 1</span>
+          <h3 class="text-xl font-bold text-white">Raio-X do Código no GitHub</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Conecta ao repositório, analisa o que a equipe acabou de programar e gera casos de teste formais (normas ISTQB) sem precisar rodar o site.
+          </p>
+        </div>
+        <div class="glass-card p-6 rounded-2xl border-indigo-500/40 space-y-3">
+          <span class="text-xs font-mono uppercase px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-700">Pilar 2</span>
+          <h3 class="text-xl font-bold text-white">Robô Navegador E2E</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Abre o navegador de verdade, clica nos botões, testa formulários como um ser humano, grava vídeo completo e tira fotos de evidência.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 6: Pilar 1 Detalhes -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-purple-400">Pilar 1 em Ação</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        Do Commit aos Casos de Teste em Segundos
+      </h2>
+      <div class="space-y-4 pt-2">
+        <div class="glass-card p-4 rounded-xl flex items-start gap-4">
+          <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center shrink-0">1</div>
+          <div>
+            <h4 class="text-sm font-bold text-white">Conexão Flexível com o GitHub</h4>
+            <p class="text-xs text-slate-400">Funciona para repositórios públicos e privados (com suporte a Tokens e Organizações corporativas).</p>
+          </div>
+        </div>
+        <div class="glass-card p-4 rounded-xl flex items-start gap-4">
+          <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center shrink-0">2</div>
+          <div>
+            <h4 class="text-sm font-bold text-white">Inspeção Inteligente do Diff</h4>
+            <p class="text-xs text-slate-400">A IA Quantum lê as linhas adicionadas e removidas e deduz o que mudou nas regras de negócio.</p>
+          </div>
+        </div>
+        <div class="glass-card p-4 rounded-xl flex items-start gap-4">
+          <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center shrink-0">3</div>
+          <div>
+            <h4 class="text-sm font-bold text-white">Geração Padronizada ISTQB</h4>
+            <p class="text-xs text-slate-400">Entrega testes prontos com ID, Pré-condição, Dados de teste, Resultado esperado e prioridade.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 7: Pilar 2 Detalhes -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-indigo-400">Pilar 2 em Ação</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        O Robô que Navega Sozinho na Aplicação
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+        <div class="glass-card p-5 rounded-xl space-y-2">
+          <div class="text-2xl">🤖</div>
+          <h4 class="text-sm font-bold text-white">Navegação Autônoma</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">Interage com botões, modais e formulários simulando o uso de um cliente real.</p>
+        </div>
+        <div class="glass-card p-5 rounded-xl space-y-2">
+          <div class="text-2xl">🎥</div>
+          <h4 class="text-sm font-bold text-white">Gravação de Vídeo (.webm)</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">Player nativo no dashboard para você assistir a cada segundo da execução do robô.</p>
+        </div>
+        <div class="glass-card p-5 rounded-xl space-y-2">
+          <div class="text-2xl">📸</div>
+          <h4 class="text-sm font-bold text-white">Evidência Dupla</h4>
+          <p class="text-xs text-slate-400 leading-relaxed">Prints automáticos de ANTES e DEPOIS de cada clique comprovando se funcionou ou falhou.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 8: Antes vs Depois -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-emerald-400">Impacto e Produtividade</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        A Mudança no Dia a Dia da Equipe
+      </h2>
+      <div class="glass-card rounded-2xl overflow-hidden border-slate-700">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-900/90 text-slate-400 uppercase font-mono border-b border-slate-800">
+            <tr>
+              <th class="p-4">Processo Tradicional</th>
+              <th class="p-4 text-purple-300">Com o Qore Analytics & Quantum</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800 text-slate-300">
+            <tr>
+              <td class="p-4">⏳ Dias inteiros criando planilhas manuais</td>
+              <td class="p-4 text-emerald-400 font-semibold">⚡ Segundos com a IA Quantum</td>
+            </tr>
+            <tr>
+              <td class="p-4">🙈 Testes genéricos que não cobrem o que mudou</td>
+              <td class="p-4 text-emerald-400 font-semibold">🎯 Foco cirúrgico nas alterações reais do código</td>
+            </tr>
+            <tr>
+              <td class="p-4">❌ Prints estáticos e discussões de equipe</td>
+              <td class="p-4 text-emerald-400 font-semibold">🎥 Vídeo gravado + prints de antes e depois</td>
+            </tr>
+            <tr>
+              <td class="p-4">💸 Bugs caros encontrados pelo cliente em produção</td>
+              <td class="p-4 text-emerald-400 font-semibold">🛡️ Erros detectados e corrigidos antes do deploy</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SLIDE 9: Ecossistema & Integrações -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-purple-400">Conectividade</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        Integrado com as Ferramentas que Você Já Usa
+      </h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
+        <div class="glass-card p-5 rounded-xl text-center space-y-2">
+          <div class="text-3xl">🐙</div>
+          <div class="font-bold text-sm text-white">GitHub</div>
+          <div class="text-xs text-slate-400">Públicos, privados e organizações</div>
+        </div>
+        <div class="glass-card p-5 rounded-xl text-center space-y-2">
+          <div class="text-3xl">📋</div>
+          <div class="font-bold text-sm text-white">Jira & Excel</div>
+          <div class="text-xs text-slate-400">Exportação em CSV em 1 clique</div>
+        </div>
+        <div class="glass-card p-5 rounded-xl text-center space-y-2">
+          <div class="text-3xl">✨</div>
+          <div class="font-bold text-sm text-white">Cursor & Copilot</div>
+          <div class="text-xs text-slate-400">Prompts prontos em BDD/Gherkin</div>
+        </div>
+        <div class="glass-card p-5 rounded-xl text-center space-y-2">
+          <div class="text-3xl">🔒</div>
+          <div class="font-bold text-sm text-white">Segurança Local</div>
+          <div class="text-xs text-slate-400">Tokens salvos apenas no seu navegador</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 10: Retorno de Investimento (ROI) -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-emerald-400">Valor de Negócio</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        Por que Toda Empresa de Software Precisa Disso?
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        <div class="glass-card p-6 rounded-2xl space-y-2">
+          <div class="text-2xl font-extrabold text-purple-400">Redução de até 80%</div>
+          <h4 class="text-sm font-bold text-white">No Tempo Gasto em Tarefas de QA</h4>
+          <p class="text-xs text-slate-400">Libera engenheiros e analistas para focarem na estratégia e regras de negócio do produto.</p>
+        </div>
+        <div class="glass-card p-6 rounded-2xl space-y-2">
+          <div class="text-2xl font-extrabold text-emerald-400">Lançamentos mais Rápidos</div>
+          <h4 class="text-sm font-bold text-white">Time-to-Market Acelerado</h4>
+          <p class="text-xs text-slate-400">A equipe entrega novas funcionalidades aos clientes com velocidade e sem medo de quebras.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 11: Roadmap -->
+    <div class="slide flex-col justify-center space-y-6 w-full">
+      <div class="text-xs uppercase font-semibold tracking-wider text-purple-400">O Que Vem Pela Frente</div>
+      <h2 class="text-4xl font-bold tracking-tight text-white">
+        Roadmap de Evolução do Qore Analytics
+      </h2>
+      <div class="space-y-3 pt-2">
+        <div class="glass-card p-4 rounded-xl flex items-center justify-between">
+          <span class="text-xs font-semibold text-white">🔗 Conexão Oficial OAuth ("Login com GitHub")</span>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">Próxima Etapa</span>
+        </div>
+        <div class="glass-card p-4 rounded-xl flex items-center justify-between">
+          <span class="text-xs font-semibold text-white">🔄 Execução Contínua em Pipelines de CI/CD (GitHub Actions)</span>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">Em Planejamento</span>
+        </div>
+        <div class="glass-card p-4 rounded-xl flex items-center justify-between">
+          <span class="text-xs font-semibold text-white">📦 Download Direto de Arquivos de Teste Automatizados (.spec.ts)</span>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">Em Planejamento</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SLIDE 12: Conclusão -->
+    <div class="slide flex-col items-center justify-center text-center space-y-6 w-full">
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 text-xs font-semibold uppercase tracking-wider">
+        🚀 Conclusão
+      </div>
+      <h2 class="text-5xl font-extrabold text-white">
+        Qore Analytics
+      </h2>
+      <p class="text-xl text-purple-300 font-medium">
+        Acelerando o desenvolvimento. Eliminando os bugs.
+      </p>
+      <div class="p-6 rounded-2xl glass-card max-w-xl text-center space-y-2">
+        <p class="text-sm text-slate-300">
+          A plataforma está <strong>online e funcional</strong>, pronta para ser demonstrada ao vivo!
+        </p>
+        <p class="text-xs font-mono text-purple-400">http://localhost:3000</p>
+      </div>
+      <p class="text-sm font-semibold text-slate-400 pt-2">
+        Muito obrigado! Estamos abertos a perguntas e demonstração prática.
+      </p>
+    </div>
+
+  </main>
+
+  <!-- Painel Retrátil de Notas do Apresentador (O que falar) -->
+  <footer id="speakerNotesPanel" class="border-t border-slate-800 bg-slate-950/95 backdrop-blur-md px-8 py-4 transition-all duration-300 z-50">
+    <div class="max-w-6xl mx-auto flex items-start gap-4">
+      <div class="text-xl shrink-0">🎙️</div>
+      <div>
+        <h4 class="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">Notas do Apresentador (O que falar agora):</h4>
+        <p id="speakerNotesText" class="text-xs text-slate-300 leading-relaxed font-normal">
+          "Olá a todos. Hoje apresentamos o Qore Analytics, uma plataforma inovadora que utiliza a nossa inteligência artificial Quantum para automatizar e revolucionar os testes de software, garantindo que nenhum bug chegue às mãos do cliente."
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const totalSlides = slides.length;
+    let currentSlide = 0;
+
+    const speakerNotes = [
+      "Olá a todos. Hoje apresentamos o Qore Analytics, uma plataforma inovadora que utiliza a nossa inteligência artificial Quantum para automatizar e revolucionar os testes de software, garantindo que nenhum bug chegue às mãos do cliente.",
+      "Desenvolver software ficou muito rápido, mas testar continua lento e burocrático. As equipes perdem dias preenchendo planilhas manuais e, muitas vezes, testam coisas irrelevantes enquanto a tela que realmente foi alterada pelo desenvolvedor passa sem validação.",
+      "Quantas vezes já ouvimos a frase 'na minha máquina funcionava'? Quando um erro acontece, falta uma evidência clara em vídeo mostrando exatamente onde o botão quebrou e o que o sistema respondeu.",
+      "O Qore Analytics é o copiloto definitivo de qualidade. No centro dele está a Quantum, nossa inteligência artificial que lê o código, entende o que foi modificado e orquestra os testes de ponta a ponta em questão de segundos.",
+      "Nossa solução atua em duas frentes fundamentais: primeiro, fazemos um raio-X no código-fonte no GitHub para planejar os testes perfeitos; segundo, colocamos um robô inteligente para navegar no site e comprovar que tudo funciona.",
+      "No Pilar 1, você não precisa configurar nada. Basta colocar o link do GitHub e a Quantum analisa a alteração que a equipe acabou de programar, gerando testes estruturados com critérios de aceite, dados de teste e prioridade calculada.",
+      "No Pilar 2, você diz o que quer testar em linguagem natural. Nosso robô abre o navegador, executa a ação, grava um vídeo de toda a sessão e tira fotos comprovando o resultado de cada clique. Acabou a dúvida sobre como reproduzir um erro.",
+      "O impacto é imediato: processos que demoravam dias passam a levar segundos. Eliminamos o retrabalho e colocamos a qualidade no mesmo ritmo ágil do desenvolvimento.",
+      "O Qore Analytics não força a empresa a mudar de ferramentas. Ele se integra ao GitHub que você já usa, exporta para o Jira da sua equipe e empodera os desenvolvedores no Cursor e Copilot.",
+      "No fim do dia, estamos falando de retorno financeiro e segurança. Entregas mais rápidas, equipe mais produtiva e a certeza de que o software entregue ao cliente realmente funciona.",
+      "Nosso MVP já entrega valor real hoje. Para o futuro, estamos expandindo com integrações contínuas de deploy e conexão direta com as maiores ferramentas corporativas do mercado.",
+      "O Qore Analytics transforma a qualidade de software de um gargalo lento em uma vantagem competitiva ágil. Muito obrigado e estamos abertos para perguntas e demonstração ao vivo!"
+    ];
+
+    function showSlide(index) {
+      slides.forEach((s, i) => {
+        s.classList.toggle('active', i === index);
+      });
+      document.getElementById('slideCounter').textContent = `Slide ${index + 1} / ${totalSlides}`;
+      document.getElementById('progressBar').style.width = `${((index + 1) / totalSlides) * 100}%`;
+      document.getElementById('speakerNotesText').textContent = speakerNotes[index] || '';
+      currentSlide = index;
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides - 1) showSlide(currentSlide + 1);
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) showSlide(currentSlide - 1);
+    }
+
+    function toggleSpeakerNotes() {
+      const panel = document.getElementById('speakerNotesPanel');
+      panel.classList.toggle('hidden');
+    }
+
+    // Navegação por teclado
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        prevSlide();
+      }
+    });
+  </script>
+</body>
+</html>
