@@ -1854,23 +1854,23 @@ export default function Home() {
               {/* Botão de Ação */}
               <div className="pt-2 flex items-center justify-between">
                 <span className="text-xs text-slate-400">
-                  Gera Matriz de Riscos, Análise de Impacto e Especificação Formal ISTQB.
+                  Gera Matriz de Rastreabilidade (RTM ISO/IEC/IEEE 29119), Matriz de Riscos e Especificação ISTQB.
                 </span>
 
                 <button
                   onClick={handleGeneratePlan}
                   disabled={isPlanning}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 text-white font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 text-white font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
                 >
                   {isPlanning ? (
                     <>
                       <RefreshCw size={16} className="animate-spin" />
-                      <span>Analisando Commit & Gerando Casos...</span>
+                      <span>Analisando Commit & Gerando Casos com RTM...</span>
                     </>
                   ) : (
                     <>
                       <GitCommit size={16} />
-                      <span>Analisar Commit & Gerar Casos de Teste</span>
+                      <span>Analisar Commit & Gerar Casos de Teste (com RTM)</span>
                     </>
                   )}
                 </button>
@@ -1883,6 +1883,19 @@ export default function Home() {
                 </div>
               )}
             </div>
+
+            {/* Guia visual pré-análise: Onde a RTM vai aparecer */}
+            {!planResult && !isPlanning && (
+              <div className="p-6 rounded-2xl bg-slate-900/50 border border-dashed border-emerald-900/40 text-center space-y-2.5">
+                <div className="flex items-center justify-center gap-2 text-slate-300 text-sm font-semibold">
+                  <Table size={18} className="text-emerald-400" />
+                  <span>Matriz de Rastreabilidade de Requisitos (RTM ISO/IEC/IEEE 29119)</span>
+                </div>
+                <p className="text-xs text-slate-400 max-w-xl mx-auto leading-relaxed">
+                  Para gerar a Matriz de Rastreabilidade mapeando <strong>Requisitos ↔ Código do Git (Diff) ↔ Casos de Teste ISTQB</strong>, clique no botão roxo acima: <strong className="text-purple-300">"Analisar Commit & Gerar Casos de Teste (com RTM)"</strong>. A tabela interativa com métricas de cobertura e download em CSV aparecerá aqui automaticamente.
+                </p>
+              </div>
+            )}
 
             {/* PAINEL DE ANÁLISE DE TESTES (TEST ANALYSIS) */}
             {planResult && (
