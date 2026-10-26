@@ -828,5 +828,78 @@ public class GitHubService
         return string.Join("\n", lines.Select(l => indent + l));
     }
 
+    public async Task<(bool Success, string Message, string GitCommand)> CreateBranchAsync(
+        string repoUrl, string baseBranch, string newBranchName, string? commitSha, string? token)
+    {
+        var (owner, repo, _, _, parseErr) = ParseRepo(repoUrl);
+        var targetBranch = string.IsNullOrWhiteSpace(newBranchName) ? $"test/qa-run-{DateTime.Now:yyyyMMddHHmm}" : newBranchName.Trim();
+        var baseRef = !string.IsNullOrWhiteSpace(commitSha) ? commitSha.Trim() : (string.IsNullOrWhiteSpace(baseBranch) ? "main" : baseBranch.Trim());
+        var gitCommand = $"git checkout -b {targetBranch} {baseRef} && git push -u origin {targetBranch}";
+
+        if (parseErr != null || string.IsNullOrWhiteSpace(owner) || string.IsNullOrWhiteSpace(repo))
+        {
+            return (false, parseErr ?? "URL do repositório inválida.", gitCommand);
+        }
+
+        var effectiveToken = !string.IsNullOrWhiteSpace(token)
+            ? token.Trim()
+            : (_config["GitHub:Token"] ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN"));
+
+        if (string.IsNullOrWhiteSpace(effectiveToken))
+        {
+            return (false, "GitHub Token (PAT) com escopo 'repo' não informado para criação remota via API. Você pode executar o comando Git diretamente:", gitCommand);
+        }
+
+        try
+        {
+            // 1. Se não tivermos o commit SHA completo, obtém a referência da base branch
+            string targetSha = baseRef;
+            if (baseRef.Length < 40)
+            {
+                var refUrl = $"https://api.github.com/repos/{owner}/{repo}/git/ref/heads/{Uri.EscapeDataString(baseRef)}";
+                using var getReq = CreateRequest(refUrl, effectiveToken);
+                using var getResp = await _http.SendAsync(getReq);
+                if (getResp.IsSuccessStatusCode)
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(await getResp.Content.ReadAsStringAsync());
+                    targetSha = doc.RootElement.GetProperty("object").GetProperty("sha").GetString() ?? baseRef;
+                }
+            }
+
+            // 2. Cria a nova branch
+            var createUrl = $"https://api.github.com/repos/{owner}/{repo}/git/refs";
+            using var postReq = new HttpRequestMessage(HttpMethod.Post, createUrl);
+            postReq.Headers.UserAgent.Add(new ProductInfoHeaderValue("QaAgent-Platform", "1.0"));
+            postReq.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
+            postReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", effectiveToken.Replace("Bearer ", "").Replace("token ", ""));
+            
+            var payload = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                @ref = $"refs/heads/{targetBranch}",
+                sha = targetSha
+            });
+            postReq.Content = new StringContent(payload, Encoding.UTF8, "application/json");
+
+            using var createResp = await _http.SendAsync(postReq);
+            if (createResp.IsSuccessStatusCode)
+            {
+                return (true, $"Branch '{targetBranch}' criada com sucesso no repositório {owner}/{repo}!", gitCommand);
+            }
+
+            var errBody = await createResp.Content.ReadAsStringAsync();
+            if (createResp.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+            {
+                return (false, $"A branch '{targetBranch}' já existe no repositório.", gitCommand);
+            }
+
+            return (false, $"GitHub retornou {(int)createResp.StatusCode}: {Trunc(errBody, 120)}. Use o comando alternativo:", gitCommand);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Falha na comunicação: {ex.Message}. Use o comando alternativo:", gitCommand);
+        }
+    }
+
     private static string Trunc(string s, int max) => s.Length <= max ? s : s[..max] + "...";
 }
+

@@ -173,3 +173,51 @@ public class RequirementTraceabilityItem
     public string Prioridade { get; set; } = "Alta"; // "Crítica", "Alta", "Média"
     public string Justificativa { get; set; } = string.Empty;
 }
+
+public class UserAccount
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Role { get; set; } = "QA"; // "Dev", "QA", "Admin"
+    public string CompanyName { get; set; } = "AfroKings Tech";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class Company
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Domain { get; set; } = string.Empty;
+    public string Plan { get; set; } = "Enterprise";
+}
+
+public class TestSignatureDto
+{
+    public int? TestPlanId { get; set; }
+    public string SignerName { get; set; } = string.Empty;
+    public string SignerRole { get; set; } = "QA Lead";
+    public string Decision { get; set; } = "Aprovado para Teste Manual"; // "Aprovado para Teste Manual", "Aprovado com Ressalvas", "Reprovado"
+    public string? Notes { get; set; }
+    public DateTime SignedAt { get; set; } = DateTime.UtcNow;
+    public string SignatureHash { get; set; } = string.Empty;
+}
+
+public class CreateBranchDto
+{
+    public string RepoUrl { get; set; } = string.Empty;
+    public string BaseBranch { get; set; } = "main";
+    public string NewBranchName { get; set; } = string.Empty;
+    public string? CommitSha { get; set; }
+    public string? GithubToken { get; set; }
+}
+
+public class TestAuthProfileDto
+{
+    public string RoleName { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public string Environment { get; set; } = "Homologação";
+    public string Description { get; set; } = string.Empty;
+}
+

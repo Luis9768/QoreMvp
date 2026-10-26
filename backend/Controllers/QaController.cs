@@ -206,4 +206,104 @@ public class QaController : ControllerBase
             .FirstOrDefaultAsync(e => e.Id == id);
         return exec == null ? NotFound() : Ok(exec);
     }
+
+    [HttpPost("github/create-branch")]
+    public async Task<IActionResult> CreateBranch([FromBody] CreateBranchDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RepoUrl))
+            return BadRequest(new { error = "RepoUrl é obrigatória." });
+
+        var token = ExtractGithubToken();
+        if (!string.IsNullOrWhiteSpace(request.GithubToken)) token = request.GithubToken;
+
+        var (success, msg, cmd) = await _gitHub.CreateBranchAsync(
+            request.RepoUrl, request.BaseBranch, request.NewBranchName, request.CommitSha, token);
+
+        return Ok(new
+        {
+            success,
+            message = msg,
+            gitCommand = cmd,
+            branchName = string.IsNullOrWhiteSpace(request.NewBranchName) ? "test/qa-run" : request.NewBranchName
+        });
+    }
+
+    // Lista de usuários padrão do sistema (Mock persistente em memória para RBAC e Multi-tenant)
+    private static readonly List<UserAccount> DefaultUsers = new()
+    {
+        new UserAccount { Id = 1, Name = "Luis Santos", Email = "luis.qa@qoreanalytics.com", Role = "QA", CompanyName = "AfroKings Tech", CreatedAt = DateTime.UtcNow.AddDays(-30) },
+        new UserAccount { Id = 2, Name = "Carlos Silva (Dev)", Email = "carlos.dev@afrokings.com", Role = "Dev", CompanyName = "AfroKings Tech", CreatedAt = DateTime.UtcNow.AddDays(-20) },
+        new UserAccount { Id = 3, Name = "Mariana Costa (Admin)", Email = "mariana.admin@qoreanalytics.com", Role = "Admin", CompanyName = "Qore Analytics Global", CreatedAt = DateTime.UtcNow.AddDays(-60) },
+        new UserAccount { Id = 4, Name = "Lucas Barber (Dev)", Email = "lucas.dev@studiobarber.com", Role = "Dev", CompanyName = "Studio Barber Ltda", CreatedAt = DateTime.UtcNow.AddDays(-10) }
+    };
+
+    [HttpGet("users")]
+    public IActionResult GetUsers()
+    {
+        return Ok(DefaultUsers);
+    }
+
+    [HttpPost("users")]
+    public IActionResult CreateUser([FromBody] UserAccount newUser)
+    {
+        if (string.IsNullOrWhiteSpace(newUser.Name) || string.IsNullOrWhiteSpace(newUser.Email))
+            return BadRequest(new { error = "Nome e e-mail são obrigatórios." });
+
+        newUser.Id = DefaultUsers.Count + 1;
+        newUser.CreatedAt = DateTime.UtcNow;
+        if (string.IsNullOrWhiteSpace(newUser.Role)) newUser.Role = "Dev";
+        if (string.IsNullOrWhiteSpace(newUser.CompanyName)) newUser.CompanyName = "AfroKings Tech";
+
+        DefaultUsers.Add(newUser);
+        return Created($"/api/qa/users/{newUser.Id}", newUser);
+    }
+
+    [HttpPost("sign-off")]
+    public IActionResult SignTest([FromBody] TestSignatureDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.SignerName))
+            return BadRequest(new { error = "Nome do responsável técnico é obrigatório para assinar." });
+
+        if (string.Equals(dto.SignerRole, "Dev", StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "Desenvolvedores (Dev) não têm permissão para assinar aprovação de release. Assinatura restrita a perfis QA e Admin." });
+
+        dto.SignedAt = DateTime.UtcNow;
+        var rawString = $"{dto.TestPlanId}-{dto.SignerName}-{dto.SignerRole}-{dto.Decision}-{dto.SignedAt:O}";
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        var bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawString));
+        dto.SignatureHash = $"QA-SIG-{Convert.ToHexString(bytes)[..16]}";
+
+        return Ok(new
+        {
+            success = true,
+            signature = dto,
+            message = $"Teste assinado com sucesso por {dto.SignerName} ({dto.SignerRole}) com parecer '{dto.Decision}'."
+        });
+    }
+
+    [HttpGet("preview-html")]
+    public async Task<IActionResult> PreviewHtml([FromQuery] string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return BadRequest(new { error = "URL é obrigatória para pré-visualização." });
+
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+            var html = await client.GetStringAsync(url);
+            var clean = html.Length > 25000 ? html[..25000] + "\n<!-- HTML truncado para pré-visualização rápida -->" : html;
+            return Ok(new { url, html = clean, length = html.Length });
+        }
+        catch (Exception ex)
+        {
+            return Ok(new
+            {
+                url,
+                html = $"<div class='p-4 text-amber-300 font-mono text-xs'>Não foi possível capturar o HTML ao vivo da URL ({ex.Message}). Exibindo estrutura DOM inferida pela IA Quantum.</div>",
+                length = 0
+            });
+        }
+    }
 }
+

@@ -115,8 +115,8 @@ Cada caso de teste gerado DEVE conter:
 - id: Inteiro sequencial (1, 2, 3...)
 - codigo: Identificador formal do caso (ex: 'TC-01', 'TC-02', 'TC-03')
 - titulo: Título formal e descritivo do caso de teste
-- tipo: Categoria padronizada ('Funcional', 'Regressão', 'Negativo' ou 'Borda')
-- tecnica: Técnica ISTQB aplicada ('Transição de Estado', 'Partição de Equivalência', 'Análise de Valor Limite' ou 'Teste Baseado em Risco')
+- tipo: Categoria padronizada ('Funcional', 'Regressão', 'Integrado', 'Negativo' ou 'Borda')
+- tecnica: Técnica ISTQB aplicada ('Transição de Estado', 'Partição de Equivalência', 'Análise de Valor Limite', 'Integração de API / Contrato' ou 'Teste Baseado em Risco')
 - prioridade: Severidade formal ('Crítica', 'Alta' ou 'Média')
 - preCondicao: Estado inicial exigido do sistema e dos dados
 - dadosTeste: Dados concretos necessários

@@ -45,7 +45,17 @@ import {
   Lock,
   Table,
   FileSpreadsheet,
-  Link2
+  Link2,
+  User,
+  Users,
+  Shield,
+  Building,
+  GitFork,
+  Code2,
+  CheckSquare,
+  Square,
+  Percent,
+  Network
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:5000/api/qa';
@@ -94,6 +104,54 @@ export default function Home() {
   const [showAiPromptModal, setShowAiPromptModal] = useState(false);
   const [copiedAiPrompt, setCopiedAiPrompt] = useState(false);
   const [aiPromptFormat, setAiPromptFormat] = useState('detailed'); // 'detailed' ou 'natural'
+
+  // Demandas: Controle de Acesso (RBAC Dev / QA / Admin)
+  const [users, setUsers] = useState([
+    { id: 1, name: "Luis Santos", email: "luis.qa@qoreanalytics.com", role: "QA", companyName: "AfroKings Tech" },
+    { id: 2, name: "Carlos Silva (Dev)", email: "carlos.dev@afrokings.com", role: "Dev", companyName: "AfroKings Tech" },
+    { id: 3, name: "Mariana Costa (Admin)", email: "mariana.admin@qoreanalytics.com", role: "Admin", companyName: "Qore Analytics Global" },
+    { id: 4, name: "Lucas Barber (Dev)", email: "lucas.dev@studiobarber.com", role: "Dev", companyName: "Studio Barber Ltda" }
+  ]);
+  const [currentUser, setCurrentUser] = useState({ id: 1, name: "Luis Santos", email: "luis.qa@qoreanalytics.com", role: "QA", companyName: "AfroKings Tech" });
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState('Dev');
+  const [newUserCompany, setNewUserCompany] = useState('AfroKings Tech');
+
+  // Demandas: Assinatura Digital do Teste (QA Sign-off)
+  const [testSignature, setTestSignature] = useState(null);
+  const [signatureDecision, setSignatureDecision] = useState('Aprovado para Teste Manual');
+  const [signatureNotes, setSignatureNotes] = useState('100% dos requisitos cobertos com rastreabilidade formal RTM ISO/IEC/IEEE 29119 e testes de regressão aprovados.');
+  const [isSigning, setIsSigning] = useState(false);
+
+  // Demandas: Critérios Mínimos de Aceitação (DoD - Quality Gate para Teste Manual)
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState({
+    zeroBlockers: true,
+    apiClean: true,
+    happyPathOk: true,
+    evidenceAttached: true,
+    rtmCovered: true
+  });
+
+  // Demandas: Autenticação de Teste
+  const [selectedAuthEnv, setSelectedAuthEnv] = useState('Homologação (Staging)');
+  const [showAuthPasswords, setShowAuthPasswords] = useState(false);
+  const [copiedAuthKey, setCopiedAuthKey] = useState(null);
+
+  // Demandas: Novas Branches
+  const [showBranchModal, setShowBranchModal] = useState(false);
+  const [newBranchInput, setNewBranchInput] = useState('');
+  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+  const [branchResult, setBranchResult] = useState(null);
+
+  // Demandas: Pré-visualização do HTML do projeto
+  const [showHtmlModal, setShowHtmlModal] = useState(false);
+  const [previewHtmlData, setPreviewHtmlData] = useState(null);
+  const [isLoadingHtml, setIsLoadingHtml] = useState(false);
+
+  // Demandas: Consistência de Classes e IDs (Estratégia DOM + Visual)
+  const [showStrategyModal, setShowStrategyModal] = useState(false);
 
   // Estados de Execução E2E (Modo 1)
   const [execution, setExecution] = useState(null);
@@ -829,6 +887,10 @@ export default function Home() {
       case 'regressão':
       case 'regressao':
         return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+      case 'integrado':
+      case 'integração':
+      case 'integracao':
+        return 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
       case 'negativo':
         return 'bg-rose-500/20 text-rose-300 border-rose-500/30';
       case 'borda':
@@ -851,14 +913,146 @@ export default function Home() {
     }
   };
 
-  // Estatísticas de Cobertura
+  // Estatísticas de Cobertura com Porcentagens Polidas (Demanda 1)
+  const totalCasos = editableSteps.length || 1;
+  const countFunc = editableSteps.filter(s => (s.tipo || '').toLowerCase().includes('funcional')).length;
+  const countRegr = editableSteps.filter(s => (s.tipo || '').toLowerCase().includes('regress')).length;
+  const countInteg = editableSteps.filter(s => (s.tipo || '').toLowerCase().includes('integ')).length;
+  const countNeg = editableSteps.filter(s => (s.tipo || '').toLowerCase().includes('negativo')).length;
+  const countBorda = editableSteps.filter(s => (s.tipo || '').toLowerCase().includes('borda')).length;
+  const countCrit = editableSteps.filter(s => (s.prioridade || '').toLowerCase().includes('cr')).length;
+  const countAlt = editableSteps.filter(s => (s.prioridade || '').toLowerCase().includes('alt')).length;
+
   const coverageStats = {
-    funcional: editableSteps.filter(s => (s.tipo || '').toLowerCase().includes('funcional')).length,
-    regressao: editableSteps.filter(s => (s.tipo || '').toLowerCase().includes('regress')).length,
-    negativo: editableSteps.filter(s => (s.tipo || '').toLowerCase().includes('negativo')).length,
-    borda: editableSteps.filter(s => (s.tipo || '').toLowerCase().includes('borda')).length,
-    critica: editableSteps.filter(s => (s.prioridade || '').toLowerCase().includes('cr')).length,
-    alta: editableSteps.filter(s => (s.prioridade || '').toLowerCase().includes('alt')).length,
+    total: editableSteps.length,
+    funcional: countFunc,
+    funcionalPct: Math.round((countFunc / totalCasos) * 100),
+    regressao: countRegr,
+    regressaoPct: Math.round((countRegr / totalCasos) * 100),
+    integrado: countInteg,
+    integradoPct: Math.round((countInteg / totalCasos) * 100),
+    negativo: countNeg,
+    negativoPct: Math.round((countNeg / totalCasos) * 100),
+    borda: countBorda,
+    bordaPct: Math.round((countBorda / totalCasos) * 100),
+    critica: countCrit,
+    criticaPct: Math.round((countCrit / totalCasos) * 100),
+    alta: countAlt,
+    altaPct: Math.round((countAlt / totalCasos) * 100),
+  };
+
+  // Handlers para Demandas: Assinatura, Criação de Branches e HTML Preview
+  const handleSignTest = async () => {
+    if (currentUser.role === 'Dev') {
+      alert('Desenvolvedores (Dev) não possuem permissão para assinar aprovação de release. Alterne para o perfil QA ou Admin no topo da página.');
+      return;
+    }
+    setIsSigning(true);
+    try {
+      const res = await fetch(`${API_BASE}/sign-off`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testPlanId: planResult?.planId || null,
+          signerName: currentUser.name,
+          signerRole: currentUser.role === 'Admin' ? 'QA Director / Admin' : 'QA Lead / ISTQB',
+          decision: signatureDecision,
+          notes: signatureNotes
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.signature) {
+        setTestSignature(data.signature);
+      } else {
+        alert(data.error || 'Erro ao assinar teste.');
+      }
+    } catch (err) {
+      alert(`Falha ao registrar assinatura: ${err.message}`);
+    } finally {
+      setIsSigning(false);
+    }
+  };
+
+  const handleCreateBranch = async () => {
+    if (!newBranchInput.trim()) return;
+    setIsCreatingBranch(true);
+    setBranchResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/github/create-branch`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(githubToken ? { 'X-GitHub-Token': githubToken.trim() } : {})
+        },
+        body: JSON.stringify({
+          repoUrl: githubUrl,
+          baseBranch: githubBranch || 'main',
+          newBranchName: newBranchInput.trim(),
+          commitSha: commitSha || planResult?.commit?.sha || null,
+          githubToken: githubToken || null
+        })
+      });
+      const data = await res.json();
+      setBranchResult(data);
+      if (data.success) {
+        setGithubBranch(newBranchInput.trim());
+      }
+    } catch (err) {
+      setBranchResult({
+        success: false,
+        message: `Falha na requisição: ${err.message}`,
+        gitCommand: `git checkout -b ${newBranchInput.trim()} && git push -u origin ${newBranchInput.trim()}`
+      });
+    } finally {
+      setIsCreatingBranch(false);
+    }
+  };
+
+  const handleFetchPreviewHtml = async () => {
+    const url = targetUrl || (planResult?.commit ? 'https://afrokings-front.duckdns.org' : '');
+    if (!url) return;
+    setIsLoadingHtml(true);
+    setShowHtmlModal(true);
+    try {
+      const res = await fetch(`${API_BASE}/preview-html?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      setPreviewHtmlData(data);
+    } catch (err) {
+      setPreviewHtmlData({
+        url,
+        html: `<div class='text-rose-400 font-mono'>Erro ao carregar HTML: ${err.message}</div>`,
+        length: 0
+      });
+    } finally {
+      setIsLoadingHtml(false);
+    }
+  };
+
+  const handleCreateNewUser = async (e) => {
+    e.preventDefault();
+    if (!newUserName.trim() || !newUserEmail.trim()) return;
+    try {
+      const res = await fetch(`${API_BASE}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newUserName.trim(),
+          email: newUserEmail.trim(),
+          role: newUserRole,
+          companyName: newUserCompany.trim()
+        })
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setUsers(prev => [...prev, created]);
+        setCurrentUser(created);
+        setNewUserName('');
+        setNewUserEmail('');
+        setShowUserModal(false);
+      }
+    } catch (err) {
+      alert(`Erro ao criar usuário: ${err.message}`);
+    }
   };
 
   // Renderizador unificado da Suíte de Casos de Teste (compatível com Modo 1 e Modo 2)
