@@ -67,7 +67,8 @@ public class TestStepExecution
     public string? DadosTeste { get; set; }
     public string? ResultadoEsperado { get; set; }
     public bool CriterioMinimo { get; set; } = true; // Critério Mínimo de Aceitação (DoD)
-    public string? CriterioMinimoDescricao { get; set; } // Especificação do Critério Mínimo
+    public string? CriterioMinimoDescricao { get; set; } // Especificação do Critério Mínimo (texto consolidado)
+    public string? CriteriosMinimosJson { get; set; } // Lista JSON com múltiplos critérios mínimos de aceitação
     public string Status { get; set; } = "Pending"; // Pending, Running, Passed, Failed, Skipped
     public string? ScreenshotFileName { get; set; }
     public string? ScreenshotUrl { get; set; }
@@ -112,7 +113,8 @@ public class StepItemDto
     public string? DadosTeste { get; set; }
     public string? ResultadoEsperado { get; set; }
     public bool CriterioMinimo { get; set; } = true; // Critério Mínimo de Aceitação
-    public string? CriterioMinimoDescricao { get; set; } // Texto descritivo do Critério Mínimo
+    public string? CriterioMinimoDescricao { get; set; } // Texto descritivo consolidado
+    public List<string> CriteriosMinimos { get; set; } = new(); // Lista dinâmica com 1 ou mais critérios mínimos
 }
 
 public class GitHubCommitInfo

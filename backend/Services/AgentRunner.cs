@@ -48,6 +48,18 @@ public class AgentRunner
         int n = 1;
         foreach (var s in req.Steps)
         {
+            var minList = s.CriteriosMinimos != null && s.CriteriosMinimos.Count > 0
+                ? s.CriteriosMinimos.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).ToList()
+                : (!string.IsNullOrWhiteSpace(s.CriterioMinimoDescricao) ? new List<string> { s.CriterioMinimoDescricao.Trim() } : new List<string>());
+
+            if (minList.Count == 0 && !string.IsNullOrWhiteSpace(s.ResultadoEsperado))
+            {
+                minList.Add(s.ResultadoEsperado.Trim());
+            }
+
+            var minDesc = minList.Count > 0 ? string.Join(" | ", minList) : s.ResultadoEsperado;
+            var minJson = System.Text.Json.JsonSerializer.Serialize(minList);
+
             exec.Steps.Add(new TestStepExecution
             {
                 StepNumber = n++,
@@ -62,7 +74,8 @@ public class AgentRunner
                 DadosTeste = s.DadosTeste,
                 ResultadoEsperado = s.ResultadoEsperado,
                 CriterioMinimo = s.CriterioMinimo,
-                CriterioMinimoDescricao = !string.IsNullOrWhiteSpace(s.CriterioMinimoDescricao) ? s.CriterioMinimoDescricao : s.ResultadoEsperado,
+                CriterioMinimoDescricao = minDesc,
+                CriteriosMinimosJson = minJson,
                 Status = "Pending"
             });
         }

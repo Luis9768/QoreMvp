@@ -395,22 +395,29 @@ export default function Home() {
       const data = await res.json();
       if (res.ok) {
         setPlanResult(data);
-        const steps = (data.passos || []).map((p, idx) => ({
-          id: p.id || idx + 1,
-          codigo: (p.codigo && p.codigo.startsWith('TC-') && p.codigo.length <= 10) ? p.codigo : `TC-${String(idx + 1).padStart(2, '0')}`,
-          titulo: p.titulo || `Caso de Teste #${idx + 1}`,
-          tipo: p.tipo || 'Funcional',
-          tecnica: p.tecnica || 'Partição de Equivalência',
-          prioridade: p.prioridade || 'Alta',
-          preCondicao: p.preCondicao || 'Sistema acessível e ambiente preparado',
-          dadosTeste: p.dadosTeste || 'Dados de formulário aplicáveis',
-          acao: p.acao || 'validar',
-          alvo: p.alvo || '',
-          descricao: p.descricao || '',
-          resultadoEsperado: p.resultadoEsperado || 'Interface atualizada em conformidade',
-          criterioMinimo: p.criterioMinimo !== false,
-          criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado || 'Critério essencial para aprovação e homologação'
-        }));
+        const steps = (data.passos || []).map((p, idx) => {
+          const rawList = Array.isArray(p.criteriosMinimos) && p.criteriosMinimos.length > 0
+            ? p.criteriosMinimos
+            : (p.criterioMinimoDescricao ? [p.criterioMinimoDescricao] : [p.resultadoEsperado || 'Critério essencial para aprovação e homologação']);
+          
+          return {
+            id: p.id || idx + 1,
+            codigo: (p.codigo && p.codigo.startsWith('TC-') && p.codigo.length <= 10) ? p.codigo : `TC-${String(idx + 1).padStart(2, '0')}`,
+            titulo: p.titulo || `Caso de Teste #${idx + 1}`,
+            tipo: p.tipo || 'Funcional',
+            tecnica: p.tecnica || 'Partição de Equivalência',
+            prioridade: p.prioridade || 'Alta',
+            preCondicao: p.preCondicao || 'Sistema acessível e ambiente preparado',
+            dadosTeste: p.dadosTeste || 'Dados de formulário aplicáveis',
+            acao: p.acao || 'validar',
+            alvo: p.alvo || '',
+            descricao: p.descricao || '',
+            resultadoEsperado: p.resultadoEsperado || 'Interface atualizada em conformidade',
+            criterioMinimo: p.criterioMinimo !== false,
+            criterioMinimoDescricao: rawList.join('; '),
+            criteriosMinimos: rawList
+          };
+        });
         setEditableSteps(steps);
       } else {
         setPlanError(data?.error || `Falha HTTP ${res.status} ao analisar e gerar plano.`);
@@ -451,7 +458,8 @@ export default function Home() {
         descricao: 'Passo a passo detalhado do procedimento de teste...',
         resultadoEsperado: 'Comportamento esperado e critérios de aceitação verificáveis',
         criterioMinimo: true,
-        criterioMinimoDescricao: 'Critério essencial para homologação da funcionalidade'
+        criterioMinimoDescricao: 'Critério essencial para homologação da funcionalidade',
+        criteriosMinimos: ['Critério essencial para homologação da funcionalidade']
       }
     ]);
   };
@@ -460,6 +468,50 @@ export default function Home() {
     setEditableSteps(prev => {
       const copy = [...prev];
       copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  // Gerenciamento de Múltiplos Critérios Mínimos de Aceitação por Caso de Teste
+  const handleAddCriterionToStep = (stepIndex) => {
+    setEditableSteps(prev => {
+      const copy = [...prev];
+      const step = { ...copy[stepIndex] };
+      const current = Array.isArray(step.criteriosMinimos) && step.criteriosMinimos.length > 0
+        ? [...step.criteriosMinimos]
+        : (step.criterioMinimoDescricao ? [step.criterioMinimoDescricao] : ['Critério essencial para homologação']);
+      current.push(`Novo critério mínimo #${current.length + 1} para aprovação`);
+      step.criteriosMinimos = current;
+      step.criterioMinimoDescricao = current.join('; ');
+      copy[stepIndex] = step;
+      return copy;
+    });
+  };
+
+  const handleUpdateStepCriterion = (stepIndex, critIndex, value) => {
+    setEditableSteps(prev => {
+      const copy = [...prev];
+      const step = { ...copy[stepIndex] };
+      const current = Array.isArray(step.criteriosMinimos) && step.criteriosMinimos.length > 0
+        ? [...step.criteriosMinimos]
+        : (step.criterioMinimoDescricao ? [step.criterioMinimoDescricao] : ['']);
+      current[critIndex] = value;
+      step.criteriosMinimos = current;
+      step.criterioMinimoDescricao = current.filter(Boolean).join('; ');
+      copy[stepIndex] = step;
+      return copy;
+    });
+  };
+
+  const handleRemoveStepCriterion = (stepIndex, critIndex) => {
+    setEditableSteps(prev => {
+      const copy = [...prev];
+      const step = { ...copy[stepIndex] };
+      const current = Array.isArray(step.criteriosMinimos) ? [...step.criteriosMinimos] : [];
+      const updated = current.filter((_, idx) => idx !== critIndex);
+      step.criteriosMinimos = updated.length > 0 ? updated : ['Critério essencial para homologação'];
+      step.criterioMinimoDescricao = step.criteriosMinimos.join('; ');
+      copy[stepIndex] = step;
       return copy;
     });
   };
@@ -521,6 +573,7 @@ export default function Home() {
             resultadoEsperado: p.resultadoEsperado,
             criterioMinimo: p.criterioMinimo !== false,
             criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado,
+            criteriosMinimos: p.criteriosMinimos || (p.criterioMinimoDescricao ? [p.criterioMinimoDescricao] : []),
             status: 'Running'
           }))
         });
@@ -574,22 +627,29 @@ export default function Home() {
       }
 
       setPlanResult(data);
-      const steps = (data.passos || []).map((p, idx) => ({
-        id: p.id || idx + 1,
-        codigo: (p.codigo && p.codigo.startsWith('TC-') && p.codigo.length <= 10) ? p.codigo : `TC-${String(idx + 1).padStart(2, '0')}`,
-        titulo: p.titulo || `Caso de Teste #${idx + 1}`,
-        tipo: p.tipo || 'Funcional',
-        tecnica: p.tecnica || 'Partição de Equivalência',
-        prioridade: p.prioridade || 'Alta',
-        preCondicao: p.preCondicao || 'Sistema acessível e ambiente preparado',
-        dadosTeste: p.dadosTeste || 'Dados de formulário aplicáveis',
-        acao: p.acao || 'validar',
-        alvo: p.alvo || '',
-        descricao: p.descricao || '',
-        resultadoEsperado: p.resultadoEsperado || 'Interface atualizada em conformidade',
-        criterioMinimo: p.criterioMinimo !== false,
-        criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado || 'Critério essencial para aprovação e homologação'
-      }));
+      const steps = (data.passos || []).map((p, idx) => {
+        const rawList = Array.isArray(p.criteriosMinimos) && p.criteriosMinimos.length > 0
+          ? p.criteriosMinimos
+          : (p.criterioMinimoDescricao ? [p.criterioMinimoDescricao] : [p.resultadoEsperado || 'Critério essencial para aprovação e homologação']);
+
+        return {
+          id: p.id || idx + 1,
+          codigo: (p.codigo && p.codigo.startsWith('TC-') && p.codigo.length <= 10) ? p.codigo : `TC-${String(idx + 1).padStart(2, '0')}`,
+          titulo: p.titulo || `Caso de Teste #${idx + 1}`,
+          tipo: p.tipo || 'Funcional',
+          tecnica: p.tecnica || 'Partição de Equivalência',
+          prioridade: p.prioridade || 'Alta',
+          preCondicao: p.preCondicao || 'Sistema acessível e ambiente preparado',
+          dadosTeste: p.dadosTeste || 'Dados de formulário aplicáveis',
+          acao: p.acao || 'validar',
+          alvo: p.alvo || '',
+          descricao: p.descricao || '',
+          resultadoEsperado: p.resultadoEsperado || 'Interface atualizada em conformidade',
+          criterioMinimo: p.criterioMinimo !== false,
+          criterioMinimoDescricao: rawList.join('; '),
+          criteriosMinimos: rawList
+        };
+      });
       setEditableSteps(steps);
       setIsPlanning(false);
 
@@ -642,6 +702,7 @@ export default function Home() {
             resultadoEsperado: p.resultadoEsperado,
             criterioMinimo: p.criterioMinimo !== false,
             criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado,
+            criteriosMinimos: p.criteriosMinimos || (p.criterioMinimoDescricao ? [p.criterioMinimoDescricao] : []),
             status: 'Running'
           }))
         });
@@ -887,7 +948,21 @@ export default function Home() {
       lines.push(`- **Dados de Teste:** ${s.dadosTeste || 'N/A'}`);
       lines.push(`- **Procedimento de Teste:** ${s.descricao}`);
       lines.push(`- **Critério de Aceite / Resultado Esperado:** ${s.resultadoEsperado}`);
-      lines.push(`- **Critério Mínimo de Aceitação (DoD):** ${s.criterioMinimo !== false ? `Sim (Bloqueante) — ${s.criterioMinimoDescricao || s.resultadoEsperado}` : 'Não (Secundário / Não-bloqueante)'}`);
+      if (s.criterioMinimo !== false) {
+        const critList = Array.isArray(s.criteriosMinimos) && s.criteriosMinimos.length > 0
+          ? s.criteriosMinimos
+          : (s.criterioMinimoDescricao ? [s.criterioMinimoDescricao] : [s.resultadoEsperado]);
+        if (critList.length > 1) {
+          lines.push(`- **Critérios Mínimos de Aceitação (DoD - Bloqueante):**`);
+          critList.forEach((c, cIdx) => {
+            lines.push(`  ${cIdx + 1}. ${c}`);
+          });
+        } else {
+          lines.push(`- **Critério Mínimo de Aceitação (DoD):** Sim (Bloqueante) — ${critList[0] || s.resultadoEsperado}`);
+        }
+      } else {
+        lines.push(`- **Critério Mínimo de Aceitação:** Não (Secundário / Não-bloqueante)`);
+      }
       lines.push(``);
     });
 
@@ -1176,7 +1251,7 @@ export default function Home() {
                   Critérios Mínimos de Aceitação (DoD - Quality Gate)
                 </h4>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  {editableSteps.filter(s => s.criterioMinimo !== false).length} de {editableSteps.length} obrigatórios
+                  {editableSteps.filter(s => s.criterioMinimo !== false).length} de {editableSteps.length} casos obrigatórios ({editableSteps.filter(s => s.criterioMinimo !== false).reduce((acc, s) => acc + (Array.isArray(s.criteriosMinimos) && s.criteriosMinimos.length > 0 ? s.criteriosMinimos.length : 1), 0)} critérios definidos)
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
@@ -1370,13 +1445,13 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Seção Dedicada: Critério Mínimo de Aceitação (DoD) */}
-              <div className={`p-3.5 rounded-xl border transition-all ${
+              {/* Seção Dedicada: Critérios Mínimos de Aceitação (DoD) */}
+              <div className={`p-4 rounded-xl border transition-all ${
                 step.criterioMinimo !== false 
-                  ? 'bg-amber-950/20 border-amber-500/40' 
+                  ? 'bg-amber-950/20 border-amber-500/40 shadow-sm' 
                   : 'bg-slate-900/40 border-slate-800'
               }`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
                   <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input 
                       type="checkbox"
@@ -1385,36 +1460,84 @@ export default function Home() {
                       className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-900 border-slate-700 cursor-pointer accent-amber-500"
                     />
                     <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                      ⭐ Critério Mínimo de Aceitação (Obrigatório para Aprovação do Release / Homologação)
+                      ⭐ Critério Mínimo de Aceitação (DoD - Obrigatório para Homologação)
                     </span>
                   </label>
                   
-                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border shrink-0 ${
-                    step.criterioMinimo !== false 
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
-                      : 'bg-slate-800 text-slate-400 border-slate-700'
-                  }`}>
-                    {step.criterioMinimo !== false ? 'Bloqueante para Release' : 'Secundário / Não-bloqueante'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border shrink-0 ${
+                      step.criterioMinimo !== false 
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
+                        : 'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}>
+                      {step.criterioMinimo !== false ? 'Bloqueante para Release' : 'Secundário / Não-bloqueante'}
+                    </span>
+                    {step.criterioMinimo !== false && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-900 text-amber-300 border border-amber-500/30 font-mono font-bold">
+                        {(Array.isArray(step.criteriosMinimos) && step.criteriosMinimos.length > 0 ? step.criteriosMinimos.length : 1)} critério(s)
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-amber-300/90 flex items-center gap-1">
-                      <span>Especificação do Critério Mínimo Aceitável:</span>
-                    </label>
-                    <span className="text-[10px] text-slate-500">
-                      Se este critério for atingido, a entrega passa para a próxima etapa mesmo com alertas
-                    </span>
+                {step.criterioMinimo !== false && (
+                  <div className="space-y-2.5 pt-1.5 border-t border-slate-800/80">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-semibold text-amber-300/90 flex items-center gap-1.5">
+                        <CheckSquare size={13} className="text-amber-400" />
+                        <span>Lista de Critérios Mínimos de Aceitação:</span>
+                      </label>
+                      <span className="text-[10px] text-slate-400">
+                        Cada critério abaixo deve ser satisfeito para aprovar o teste
+                      </span>
+                    </div>
+
+                    {/* Itens dinâmicos de Critérios Mínimos */}
+                    <div className="space-y-2">
+                      {(Array.isArray(step.criteriosMinimos) && step.criteriosMinimos.length > 0 
+                        ? step.criteriosMinimos 
+                        : (step.criterioMinimoDescricao ? [step.criterioMinimoDescricao] : [step.resultadoEsperado || 'Critério essencial para aprovação'])
+                      ).map((crit, cIdx, arr) => (
+                        <div key={cIdx} className="flex items-center gap-2 animate-in fade-in duration-200">
+                          <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-bold flex items-center justify-center shrink-0 border border-amber-500/30">
+                            {cIdx + 1}
+                          </span>
+                          <input 
+                            type="text"
+                            value={crit}
+                            onChange={(e) => handleUpdateStepCriterion(index, cIdx, e.target.value)}
+                            placeholder={`Critério mínimo #${cIdx + 1} (ex: Resposta deve retornar 200, gravar token, não exibir tela branca...)`}
+                            className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-400 placeholder:text-slate-600"
+                          />
+                          {arr.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveStepCriterion(index, cIdx)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-950/30 border border-transparent hover:border-red-800/40 transition-colors"
+                              title="Remover este critério"
+                            >
+                              <X size={13} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Botão para Adicionar mais um critério a este caso de teste */}
+                    <div className="pt-1 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleAddCriterionToStep(index)}
+                        className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        <Plus size={13} /> Adicionar Mais um Critério Mínimo
+                      </button>
+                      <span className="text-[10px] text-slate-500">
+                        Você pode definir múltiplos critérios essenciais por caso
+                      </span>
+                    </div>
                   </div>
-                  <input 
-                    type="text"
-                    value={step.criterioMinimoDescricao !== undefined ? step.criterioMinimoDescricao : (step.resultadoEsperado || '')}
-                    onChange={(e) => handleUpdateStep(index, 'criterioMinimoDescricao', e.target.value)}
-                    placeholder="Ex: O botão deve redirecionar e registrar o agendamento mesmo se animações opcionais falharem..."
-                    className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-400 placeholder:text-slate-600"
-                  />
-                </div>
+                )}
               </div>
             </div>
           ))}
@@ -2963,10 +3086,46 @@ export default function Home() {
                             </p>
                           )}
 
-                          {s.criterioMinimoDescricao && (
-                            <p className="text-[11px] text-amber-300/80 font-medium">
-                              <strong>Critério Mínimo:</strong> {s.criterioMinimoDescricao}
-                            </p>
+                          {s.criterioMinimo !== false && (
+                            <div className="pt-0.5">
+                              {(() => {
+                                let list = [];
+                                if (Array.isArray(s.criteriosMinimos) && s.criteriosMinimos.length > 0) {
+                                  list = s.criteriosMinimos;
+                                } else if (s.criteriosMinimosJson) {
+                                  try { list = JSON.parse(s.criteriosMinimosJson); } catch {}
+                                } else if (s.criterioMinimoDescricao && s.criterioMinimoDescricao.includes(' | ')) {
+                                  list = s.criterioMinimoDescricao.split(' | ');
+                                } else if (s.criterioMinimoDescricao && s.criterioMinimoDescricao.includes('; ')) {
+                                  list = s.criterioMinimoDescricao.split('; ');
+                                } else if (s.criterioMinimoDescricao) {
+                                  list = [s.criterioMinimoDescricao];
+                                }
+
+                                if (list.length > 1) {
+                                  return (
+                                    <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/25 space-y-1 mt-1">
+                                      <span className="text-[10px] font-bold text-amber-300 block mb-1">
+                                        ⭐ {list.length} Critérios Mínimos de Aceitação (DoD):
+                                      </span>
+                                      {list.map((c, cIdx) => (
+                                        <div key={cIdx} className="text-[11px] text-amber-200/90 font-medium flex items-center gap-1.5">
+                                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>
+                                          <span>{c}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                } else if (list.length === 1) {
+                                  return (
+                                    <p className="text-[11px] text-amber-300/90 font-medium">
+                                      <strong>Critério Mínimo:</strong> {list[0]}
+                                    </p>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
                           )}
 
                           <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1">

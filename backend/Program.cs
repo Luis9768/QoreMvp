@@ -79,6 +79,7 @@ using (var scope = app.Services.CreateScope())
     try { db.Database.ExecuteSqlRaw("ALTER TABLE TestStepExecutions ADD COLUMN DadosTeste TEXT;"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE TestStepExecutions ADD COLUMN CriterioMinimo INTEGER DEFAULT 1;"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE TestStepExecutions ADD COLUMN CriterioMinimoDescricao TEXT;"); } catch { }
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE TestStepExecutions ADD COLUMN CriteriosMinimosJson TEXT;"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN TotalCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN PassedCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }
     try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN FailedCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }

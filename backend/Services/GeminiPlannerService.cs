@@ -74,7 +74,11 @@ Responda ESTRITAMENTE em JSON:
       ""descricao"": ""Abre a tela de login e confirma visibilidade do formulário"",
       ""resultadoEsperado"": ""Formulário de login visível com campos de usuário e senha"",
       ""criterioMinimo"": true,
-      ""criterioMinimoDescricao"": ""O formulário deve ser renderizado e aceitar submissão""
+      ""criterioMinimoDescricao"": ""O formulário deve ser renderizado e aceitar submissão com token"",
+      ""criteriosMinimos"": [
+        ""Formulário deve renderizar sem erro 500"",
+        ""Campos de email e senha devem aceitar digitação e submissão""
+      ]
     }
   ]
 }";
@@ -125,7 +129,8 @@ Cada caso de teste gerado DEVE conter:
 - descricao: Procedimento claro passo a passo de como executar e validar o teste
 - resultadoEsperado: Critério de Aceite formal (resultado esperado e critério de verificação)
 - criterioMinimo: Booleano (true para requisitos essenciais, fluxos críticos e bloqueantes de homologação; false para cenários secundários, bordas estéticas ou cosméticas)
-- criterioMinimoDescricao: Especificação clara do que é o mínimo aceitável para passar o teste para a próxima etapa (mesmo com avisos secundários)
+- criterioMinimoDescricao: Especificação clara consolidada do que é o mínimo aceitável
+- criteriosMinimos: Array de 1 a 3 strings com os critérios mínimos específicos de aceitação (checklist do DoD) para considerar o teste aprovado
 
 Responda ESTRITAMENTE em JSON:
 {
@@ -174,7 +179,11 @@ Responda ESTRITAMENTE em JSON:
       ""descricao"": ""1. Acessar a tela Meus Agendamentos; 2. Localizar o agendamento com cancelamento; 3. Inspecionar o badge de status."",
       ""resultadoEsperado"": ""O badge exibe o texto 'Cancelado' com classe visual correspondente (.status-cancelado)."",
       ""criterioMinimo"": true,
-      ""criterioMinimoDescricao"": ""O badge deve exibir o texto 'Cancelado' e não travar o carregamento da lista de agendamentos""
+      ""criterioMinimoDescricao"": ""O badge deve exibir o texto 'Cancelado' e não travar o carregamento da lista de agendamentos"",
+      ""criteriosMinimos"": [
+        ""O badge exibe o texto 'Cancelado' com visibilidade garantida"",
+        ""A lista de agendamentos não deve travar nem gerar erro 500 no console""
+      ]
     }
   ]
 }";
