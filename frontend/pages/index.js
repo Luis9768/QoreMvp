@@ -407,7 +407,9 @@ export default function Home() {
           acao: p.acao || 'validar',
           alvo: p.alvo || '',
           descricao: p.descricao || '',
-          resultadoEsperado: p.resultadoEsperado || 'Interface atualizada em conformidade'
+          resultadoEsperado: p.resultadoEsperado || 'Interface atualizada em conformidade',
+          criterioMinimo: p.criterioMinimo !== false,
+          criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado || 'Critério essencial para aprovação e homologação'
         }));
         setEditableSteps(steps);
       } else {
@@ -447,7 +449,9 @@ export default function Home() {
         acao: 'validar',
         alvo: '',
         descricao: 'Passo a passo detalhado do procedimento de teste...',
-        resultadoEsperado: 'Comportamento esperado e critérios de aceitação verificáveis'
+        resultadoEsperado: 'Comportamento esperado e critérios de aceitação verificáveis',
+        criterioMinimo: true,
+        criterioMinimoDescricao: 'Critério essencial para homologação da funcionalidade'
       }
     ]);
   };
@@ -496,6 +500,10 @@ export default function Home() {
           prompt: planResult?.titulo || userPrompt,
           startedAt: new Date().toISOString(),
           totalSteps: editableSteps.length,
+          totalCriteriosMinimos: editableSteps.filter(s => s.criterioMinimo !== false).length,
+          passedCriteriosMinimos: 0,
+          failedCriteriosMinimos: 0,
+          criteriosMinimosAtingidos: false,
           passedSteps: 0,
           failedSteps: 0,
           logs: `[${new Date().toLocaleTimeString()}] Execução #${data.executionId} iniciada. Abrindo Chromium com ${editableSteps.length} casos...`,
@@ -511,6 +519,8 @@ export default function Home() {
             dadosTeste: p.dadosTeste,
             descricao: p.descricao,
             resultadoEsperado: p.resultadoEsperado,
+            criterioMinimo: p.criterioMinimo !== false,
+            criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado,
             status: 'Running'
           }))
         });
@@ -576,7 +586,9 @@ export default function Home() {
         acao: p.acao || 'validar',
         alvo: p.alvo || '',
         descricao: p.descricao || '',
-        resultadoEsperado: p.resultadoEsperado || 'Interface atualizada em conformidade'
+        resultadoEsperado: p.resultadoEsperado || 'Interface atualizada em conformidade',
+        criterioMinimo: p.criterioMinimo !== false,
+        criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado || 'Critério essencial para aprovação e homologação'
       }));
       setEditableSteps(steps);
       setIsPlanning(false);
@@ -609,6 +621,10 @@ export default function Home() {
           prompt: data.titulo || userPrompt,
           startedAt: new Date().toISOString(),
           totalSteps: steps.length,
+          totalCriteriosMinimos: steps.filter(s => s.criterioMinimo !== false).length,
+          passedCriteriosMinimos: 0,
+          failedCriteriosMinimos: 0,
+          criteriosMinimosAtingidos: false,
           passedSteps: 0,
           failedSteps: 0,
           logs: `[${new Date().toLocaleTimeString()}] Execução #${execData.executionId} iniciada. Abrindo Chromium com ${steps.length} casos...`,
@@ -624,6 +640,8 @@ export default function Home() {
             dadosTeste: p.dadosTeste,
             descricao: p.descricao,
             resultadoEsperado: p.resultadoEsperado,
+            criterioMinimo: p.criterioMinimo !== false,
+            criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado,
             status: 'Running'
           }))
         });
@@ -731,7 +749,18 @@ export default function Home() {
   const getRtmList = () => {
     if (!planResult) return [];
     const direct = planResult.matrizRastreabilidade || planResult.rtm || planResult.analise?.matrizRastreabilidade;
-    if (Array.isArray(direct) && direct.length > 0) return direct;
+    if (Array.isArray(direct) && direct.length > 0) {
+      return direct.map((item, idx) => {
+        const firstTcId = Array.isArray(item.casosTesteIds) ? item.casosTesteIds[0] : item.casosTesteIds;
+        const matchedStep = editableSteps.find(s => s.codigo === firstTcId) || editableSteps[idx];
+        const isMin = matchedStep ? matchedStep.criterioMinimo !== false : true;
+        return {
+          ...item,
+          criterioMinimo: isMin ? 'Sim (DoD)' : 'Secundário',
+          criterioMinimoDescricao: matchedStep?.criterioMinimoDescricao || item.justificativa
+        };
+      });
+    }
 
     // Fallback estruturado inteligente a partir dos casos de teste e arquivos do commit
     if (editableSteps.length > 0) {
@@ -752,6 +781,8 @@ export default function Home() {
           modulo: modName,
           arquivosAfetados: [matchedFile],
           casosTesteIds: [s.codigo || `TC-${String(idx + 1).padStart(2, '0')}`],
+          criterioMinimo: s.criterioMinimo !== false ? 'Sim (DoD)' : 'Secundário',
+          criterioMinimoDescricao: s.criterioMinimoDescricao || s.resultadoEsperado,
           statusCobertura: '100% Coberto',
           prioridade: s.prioridade || 'Alta',
           justificativa: s.resultadoEsperado || 'Coberto por caso de teste de regressão e aceitação.'
@@ -764,7 +795,7 @@ export default function Home() {
   const handleDownloadRtmCsv = () => {
     const list = getRtmList();
     if (list.length === 0) return;
-    const headers = ['ID Requisito', 'Módulo', 'Categoria', 'Título / Requisito', 'Arquivos Afetados', 'Casos de Teste Vinculados', 'Status Cobertura', 'Prioridade', 'Justificativa'];
+    const headers = ['ID Requisito', 'Módulo', 'Categoria', 'Título / Requisito', 'Arquivos Afetados', 'Casos de Teste Vinculados', 'Critério Mínimo (DoD)', 'Status Cobertura', 'Prioridade', 'Justificativa'];
     const rows = list.map(item => [
       `"${(item.idRequisito || '').replace(/"/g, '""')}"`,
       `"${(item.modulo || '').replace(/"/g, '""')}"`,
@@ -772,6 +803,7 @@ export default function Home() {
       `"${(item.titulo || '').replace(/"/g, '""')}"`,
       `"${(Array.isArray(item.arquivosAfetados) ? item.arquivosAfetados.join('; ') : (item.arquivosAfetados || '')).replace(/"/g, '""')}"`,
       `"${(Array.isArray(item.casosTesteIds) ? item.casosTesteIds.join(', ') : (item.casosTesteIds || '')).replace(/"/g, '""')}"`,
+      `"${(item.criterioMinimo || 'Sim (DoD)').replace(/"/g, '""')}"`,
       `"${(item.statusCobertura || '100% Coberto').replace(/"/g, '""')}"`,
       `"${(item.prioridade || 'Alta').replace(/"/g, '""')}"`,
       `"${(item.justificativa || '').replace(/"/g, '""')}"`
@@ -855,6 +887,7 @@ export default function Home() {
       lines.push(`- **Dados de Teste:** ${s.dadosTeste || 'N/A'}`);
       lines.push(`- **Procedimento de Teste:** ${s.descricao}`);
       lines.push(`- **Critério de Aceite / Resultado Esperado:** ${s.resultadoEsperado}`);
+      lines.push(`- **Critério Mínimo de Aceitação (DoD):** ${s.criterioMinimo !== false ? `Sim (Bloqueante) — ${s.criterioMinimoDescricao || s.resultadoEsperado}` : 'Não (Secundário / Não-bloqueante)'}`);
       lines.push(``);
     });
 
@@ -1131,12 +1164,65 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Quality Gate & Critérios Mínimos de Aceitação (DoD) */}
+        <div className="p-4 rounded-xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-amber-950/20 border border-amber-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+              <Shield size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-sm font-bold text-slate-100">
+                  Critérios Mínimos de Aceitação (DoD - Quality Gate)
+                </h4>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  {editableSteps.filter(s => s.criterioMinimo !== false).length} de {editableSteps.length} obrigatórios
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Casos marcados como <strong>Critério Mínimo</strong> são bloqueantes. Se todos passarem, a suíte é <strong>aprovada</strong> mesmo que testes secundários apresentem falha.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setEditableSteps(prev => prev.map(s => ({ ...s, criterioMinimo: true })))}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-semibold border border-amber-500/30 transition-colors"
+              title="Marcar todos os casos como critérios mínimos obrigatórios"
+            >
+              ⭐ Marcar Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditableSteps(prev => prev.map(s => ({ ...s, criterioMinimo: s.prioridade === 'Crítica' || s.prioridade === 'Alta' })))}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition-colors"
+              title="Marcar apenas casos de prioridade Alta e Crítica como obrigatórios"
+            >
+              ⚡ Apenas Críticos / Altos
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditableSteps(prev => prev.map(s => ({ ...s, criterioMinimo: false })))}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-medium border border-slate-800 transition-colors"
+              title="Desmarcar todos"
+            >
+              Desmarcar
+            </button>
+          </div>
+        </div>
+
         {/* Lista de Fichas de Casos de Teste */}
         <div className="space-y-4">
           {editableSteps.map((step, index) => (
             <div 
               key={step.id || index}
-              className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/90 hover:border-slate-700 transition-all space-y-3.5 shadow-sm"
+              className={`p-4 rounded-xl border transition-all space-y-3.5 shadow-sm ${
+                step.criterioMinimo !== false 
+                  ? 'bg-slate-950/90 border-slate-800 hover:border-amber-500/40' 
+                  : 'bg-slate-950/60 border-slate-850 hover:border-slate-700 opacity-90'
+              }`}
             >
               {/* Cabeçalho da Ficha de Teste */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800/60">
@@ -1158,6 +1244,7 @@ export default function Home() {
                   >
                     <option value="Funcional">Funcional</option>
                     <option value="Regressão">Regressão</option>
+                    <option value="Integrado">Integrado</option>
                     <option value="Negativo">Negativo</option>
                     <option value="Borda">Borda</option>
                   </select>
@@ -1171,6 +1258,7 @@ export default function Home() {
                     <option value="Transição de Estado">Transição de Estado</option>
                     <option value="Partição de Equivalência">Partição de Equivalência</option>
                     <option value="Análise de Valor Limite">Análise de Valor Limite</option>
+                    <option value="Integração de API / Contrato">Integração de API / Contrato</option>
                     <option value="Teste Baseado em Risco">Teste Baseado em Risco</option>
                   </select>
 
@@ -1184,6 +1272,17 @@ export default function Home() {
                     <option value="Alta">P2 - Alta</option>
                     <option value="Média">P3 - Média</option>
                   </select>
+
+                  {/* Badge de Critério Mínimo */}
+                  {step.criterioMinimo !== false ? (
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shadow-sm">
+                      ⭐ Critério Mínimo (DoD)
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                      Secundário
+                    </span>
+                  )}
                 </div>
 
                 {/* Botão de Excluir Caso */}
@@ -1268,6 +1367,53 @@ export default function Home() {
                       className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-emerald-950 text-emerald-300 focus:outline-none focus:border-emerald-500 font-medium"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Seção Dedicada: Critério Mínimo de Aceitação (DoD) */}
+              <div className={`p-3.5 rounded-xl border transition-all ${
+                step.criterioMinimo !== false 
+                  ? 'bg-amber-950/20 border-amber-500/40' 
+                  : 'bg-slate-900/40 border-slate-800'
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={step.criterioMinimo !== false}
+                      onChange={(e) => handleUpdateStep(index, 'criterioMinimo', e.target.checked)}
+                      className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500 bg-slate-900 border-slate-700 cursor-pointer accent-amber-500"
+                    />
+                    <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      ⭐ Critério Mínimo de Aceitação (Obrigatório para Aprovação do Release / Homologação)
+                    </span>
+                  </label>
+                  
+                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider border shrink-0 ${
+                    step.criterioMinimo !== false 
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
+                  }`}>
+                    {step.criterioMinimo !== false ? 'Bloqueante para Release' : 'Secundário / Não-bloqueante'}
+                  </span>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-semibold text-amber-300/90 flex items-center gap-1">
+                      <span>Especificação do Critério Mínimo Aceitável:</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500">
+                      Se este critério for atingido, a entrega passa para a próxima etapa mesmo com alertas
+                    </span>
+                  </div>
+                  <input 
+                    type="text"
+                    value={step.criterioMinimoDescricao !== undefined ? step.criterioMinimoDescricao : (step.resultadoEsperado || '')}
+                    onChange={(e) => handleUpdateStep(index, 'criterioMinimoDescricao', e.target.value)}
+                    placeholder="Ex: O botão deve redirecionar e registrar o agendamento mesmo se animações opcionais falharem..."
+                    className="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-400 placeholder:text-slate-600"
+                  />
                 </div>
               </div>
             </div>
@@ -2349,6 +2495,7 @@ export default function Home() {
                         <th className="p-3 min-w-[240px]">Requisito / Especificação Funcional</th>
                         <th className="p-3 min-w-[180px]">Arquivos Afetados (Git Diff)</th>
                         <th className="p-3 min-w-[140px]">Casos de Teste</th>
+                        <th className="p-3 whitespace-nowrap">Critério Mínimo (DoD)</th>
                         <th className="p-3 whitespace-nowrap">Cobertura</th>
                         <th className="p-3 whitespace-nowrap">Prioridade</th>
                       </tr>
@@ -2421,6 +2568,19 @@ export default function Home() {
                                 </span>
                               )}
                             </div>
+                          </td>
+
+                          {/* Critério Mínimo (DoD) */}
+                          <td className="p-3 whitespace-nowrap">
+                            {item.criterioMinimo?.includes('Sim') || item.criterioMinimo === true ? (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 w-fit shadow-sm">
+                                ⭐ Sim (DoD)
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 w-fit">
+                                Secundário
+                              </span>
+                            )}
                           </td>
 
                           {/* Cobertura */}
@@ -2672,18 +2832,55 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                      execution.status === 'Passed' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
-                      execution.status === 'Failed' ? 'bg-red-500/20 text-red-300 border border-red-500/40' :
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                      execution.status === 'Passed' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20' :
+                      execution.status === 'PassedWithWarnings' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/20' :
+                      execution.status === 'Failed' ? 'bg-red-500/20 text-red-300 border border-red-500/40 shadow-sm shadow-red-500/20' :
                       'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse'
                     }`}>
-                      {execution.status}
+                      {execution.status === 'Passed' && '✔ Aprovado (100%)'}
+                      {execution.status === 'PassedWithWarnings' && '⚡ Aprovado (Critérios Mínimos Atendidos)'}
+                      {execution.status === 'Failed' && '✖ Reprovado (Bloqueante)'}
+                      {execution.status !== 'Passed' && execution.status !== 'PassedWithWarnings' && execution.status !== 'Failed' && execution.status}
                     </span>
                   </div>
                 </div>
 
+                {/* Banner de Quality Gate */}
+                {execution.status === 'PassedWithWarnings' && (
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-amber-950/40 via-emerald-950/20 to-amber-950/30 border border-amber-500/40 flex items-start gap-3 shadow-lg">
+                    <CheckSquare size={20} className="text-amber-400 shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                      <div className="font-bold text-amber-300 text-sm flex items-center gap-2">
+                        <span>🏆 Quality Gate: Aprovado com Ressalvas (Critérios Mínimos Atingidos)</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+                          Apto para Homologação / Teste Manual
+                        </span>
+                      </div>
+                      <p className="text-slate-300 mt-1 leading-relaxed">
+                        100% dos <strong>{execution.passedCriteriosMinimos !== undefined ? execution.passedCriteriosMinimos : (execution.totalCriteriosMinimos || 0)} Critérios Mínimos de Aceitação</strong> foram satisfeitos. 
+                        As <strong>{execution.failedSteps || 0} falha(s)</strong> registradas são em casos secundários/não-bloqueantes e não impedem a liberação para testes manuais.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {execution.status === 'Failed' && (execution.failedCriteriosMinimos > 0 || execution.criteriosMinimosAtingidos === false) && (
+                  <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/40 flex items-start gap-3 shadow-lg">
+                    <Shield size={20} className="text-rose-400 shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                      <div className="font-bold text-rose-300 text-sm">
+                        🛑 Quality Gate Bloqueado: Falha em Critério Mínimo de Aceitação
+                      </div>
+                      <p className="text-slate-300 mt-1 leading-relaxed">
+                        Um ou mais <strong>Critérios Mínimos de Aceitação essenciais ({execution.failedCriteriosMinimos || execution.failedSteps})</strong> falharam. A versão está bloqueada para homologação até resolução dos impedimentos.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Métricas Principais */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
                   <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-center">
                     <span className="text-[11px] text-slate-400 block mb-0.5">Total de Casos</span>
                     <span className="text-xl font-bold font-mono text-slate-100">{execution.totalSteps || 0}</span>
@@ -2695,6 +2892,12 @@ export default function Home() {
                   <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-center">
                     <span className="text-[11px] text-slate-400 block mb-0.5">Casos com Falha</span>
                     <span className="text-xl font-bold font-mono text-rose-400">{execution.failedSteps || 0}</span>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-slate-950 border border-amber-500/30 text-center bg-amber-950/10">
+                    <span className="text-[11px] text-amber-300 font-medium block mb-0.5">Critérios Mínimos</span>
+                    <span className="text-xl font-bold font-mono text-amber-400">
+                      {execution.passedCriteriosMinimos !== undefined ? execution.passedCriteriosMinimos : (execution.totalCriteriosMinimos || 0)}/{execution.totalCriteriosMinimos || execution.totalSteps || 0}
+                    </span>
                   </div>
                   <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-center">
                     <span className="text-[11px] text-slate-400 block mb-0.5">Taxa de Conformidade</span>
@@ -2714,7 +2917,9 @@ export default function Home() {
                     {(execution.steps || []).map((s) => (
                       <div 
                         key={s.id || s.stepNumber}
-                        className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                        className={`p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
+                          s.criterioMinimo !== false ? 'bg-slate-950 border-slate-800/90' : 'bg-slate-950/60 border-slate-850 opacity-90'
+                        }`}
                       >
                         <div className="space-y-1.5 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -2724,6 +2929,19 @@ export default function Home() {
                             {s.tipo && (
                               <span className={`text-[10px] px-2 py-0.5 rounded font-semibold border ${getBadgeTypeColor(s.tipo)}`}>
                                 {s.tipo}
+                              </span>
+                            )}
+                            {s.criterioMinimo !== false ? (
+                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${
+                                s.status === 'Passed' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+                                s.status === 'Failed' ? 'bg-red-500/20 text-red-300 border-red-500/40' :
+                                'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                              }`}>
+                                {s.status === 'Passed' ? '⭐ Mínimo Aprovado' : s.status === 'Failed' ? '🚨 Mínimo Reprovado (Bloqueante)' : '⭐ Critério Mínimo'}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] px-2 py-0.5 rounded font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                                {s.status === 'Failed' ? '⚠️ Falha Secundária' : 'Secundário'}
                               </span>
                             )}
                             <h5 className="text-sm font-semibold text-slate-100">{s.stepTitle}</h5>
@@ -2742,6 +2960,12 @@ export default function Home() {
                           {s.resultadoEsperado && (
                             <p className="text-[11px] text-emerald-400/90 font-medium">
                               <strong>Assert:</strong> {s.resultadoEsperado}
+                            </p>
+                          )}
+
+                          {s.criterioMinimoDescricao && (
+                            <p className="text-[11px] text-amber-300/80 font-medium">
+                              <strong>Critério Mínimo:</strong> {s.criterioMinimoDescricao}
                             </p>
                           )}
 

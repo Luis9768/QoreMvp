@@ -42,7 +42,8 @@ public class AgentRunner
             Prompt = req.Prompt ?? string.Empty,
             Status = "Running",
             StartedAt = DateTime.UtcNow,
-            TotalSteps = req.Steps.Count
+            TotalSteps = req.Steps.Count,
+            TotalCriteriosMinimos = req.Steps.Count(s => s.CriterioMinimo)
         };
         int n = 1;
         foreach (var s in req.Steps)
@@ -60,6 +61,8 @@ public class AgentRunner
                 PreCondicao = s.PreCondicao,
                 DadosTeste = s.DadosTeste,
                 ResultadoEsperado = s.ResultadoEsperado,
+                CriterioMinimo = s.CriterioMinimo,
+                CriterioMinimoDescricao = !string.IsNullOrWhiteSpace(s.CriterioMinimoDescricao) ? s.CriterioMinimoDescricao : s.ResultadoEsperado,
                 Status = "Pending"
             });
         }
@@ -306,11 +309,36 @@ public class AgentRunner
                 // NÃO aborta a suíte inteira! Permite testar os passos seguintes caso a página continue utilizável
             }
 
-            exec.Status = exec.FailedSteps == 0 && exec.PassedSteps == exec.TotalSteps ? "Passed" : "Failed";
+            var minSteps = exec.Steps.Where(s => s.CriterioMinimo).ToList();
+            exec.TotalCriteriosMinimos = minSteps.Count;
+            exec.PassedCriteriosMinimos = minSteps.Count(s => s.Status == "Passed");
+            exec.FailedCriteriosMinimos = minSteps.Count(s => s.Status == "Failed");
+
+            bool allMinPassed = minSteps.Count > 0
+                ? exec.PassedCriteriosMinimos == minSteps.Count
+                : (exec.FailedSteps == 0);
+            exec.CriteriosMinimosAtingidos = allMinPassed;
+
+            if (exec.FailedSteps == 0 && exec.PassedSteps == exec.TotalSteps)
+            {
+                exec.Status = "Passed";
+                await Log($"\n🏆 SUÍTE APROVADA COM EXCELÊNCIA: 100% dos testes passaram com sucesso ({exec.PassedSteps}/{exec.TotalSteps})!");
+            }
+            else if (allMinPassed)
+            {
+                exec.Status = "PassedWithWarnings";
+                await Log($"\n⚡ APROVADO COM RESSALVAS (CRITÉRIOS MÍNIMOS ATINGIDOS): 100% dos Critérios Mínimos de Aceitação ({exec.PassedCriteriosMinimos}/{exec.TotalCriteriosMinimos}) foram ATENDIDOS com sucesso! Houve {exec.FailedSteps} falha(s) secundária(s) não-bloqueante(s). Versão liberada para homologação / teste manual.");
+            }
+            else
+            {
+                exec.Status = "Failed";
+                await Log($"\n🛑 SUÍTE REPROVADA (BLOQUEANTE): {exec.FailedCriteriosMinimos} de {exec.TotalCriteriosMinimos} Critério(s) Mínimo(s) de Aceitação falharam. Bloqueado para teste manual e release.");
+            }
         }
         catch (Exception ex)
         {
             exec.Status = "Failed";
+            exec.CriteriosMinimosAtingidos = false;
             foreach (var s in exec.Steps.Where(s => s.Status is "Pending" or "Running"))
             {
                 s.ErrorDetails ??= s.Status == "Running" ? ex.Message : null;

@@ -39,6 +39,10 @@ public class TestExecution
     public int TotalSteps { get; set; }
     public int PassedSteps { get; set; }
     public int FailedSteps { get; set; }
+    public int TotalCriteriosMinimos { get; set; }
+    public int PassedCriteriosMinimos { get; set; }
+    public int FailedCriteriosMinimos { get; set; }
+    public bool CriteriosMinimosAtingidos { get; set; }
     public string? VideoFileName { get; set; }
     public string? VideoUrl { get; set; }
     public string Logs { get; set; } = string.Empty;
@@ -62,6 +66,8 @@ public class TestStepExecution
     public string? PreCondicao { get; set; }
     public string? DadosTeste { get; set; }
     public string? ResultadoEsperado { get; set; }
+    public bool CriterioMinimo { get; set; } = true; // Critério Mínimo de Aceitação (DoD)
+    public string? CriterioMinimoDescricao { get; set; } // Especificação do Critério Mínimo
     public string Status { get; set; } = "Pending"; // Pending, Running, Passed, Failed, Skipped
     public string? ScreenshotFileName { get; set; }
     public string? ScreenshotUrl { get; set; }
@@ -105,6 +111,8 @@ public class StepItemDto
     public string? PreCondicao { get; set; }
     public string? DadosTeste { get; set; }
     public string? ResultadoEsperado { get; set; }
+    public bool CriterioMinimo { get; set; } = true; // Critério Mínimo de Aceitação
+    public string? CriterioMinimoDescricao { get; set; } // Texto descritivo do Critério Mínimo
 }
 
 public class GitHubCommitInfo
