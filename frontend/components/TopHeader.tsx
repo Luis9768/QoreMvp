@@ -28,6 +28,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
     switch (currentTab) {
       case 'dashboard':
         return ['Início', 'Visão Geral', 'Dashboard de Telemetria'];
+      case 'commits':
+        return ['Início', 'Repositório GitHub', 'Inspeção de Commits & Git Diff'];
+      case 'consistency':
+        return ['Início', 'Engenharia de Automação', 'Consistência de DOM & Seletores'];
       case 'prompt':
         return ['Início', 'Roteiro de Testes', 'Geração Assistida por IA'];
       case 'detalhes':
@@ -50,6 +54,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           title: 'Painel Geral de Qualidade & Telemetria',
           subtitle: 'Métricas consolidadas de testes E2E, taxa de aprovação no Quality Gate e análise de regressão contínua.',
           badge: 'Live Analytics',
+        };
+      case 'commits':
+        return {
+          title: 'Análise Aprofundada de Commits & Git Diff',
+          subtitle: 'Inspeção linha a linha de alterações, identificação de impacto em camadas e avaliação preditiva de risco pela IA.',
+          badge: 'Git Diff Inspector',
+        };
+      case 'consistency':
+        return {
+          title: 'Consistência de DOM & Estratégia Híbrida',
+          subtitle: 'Mapeamento de seletores resilientes e auto-recuperação (Self-Healing) contra IDs randômicos e classes mutáveis.',
+          badge: 'Self-Healing DOM',
         };
       case 'prompt':
         return {

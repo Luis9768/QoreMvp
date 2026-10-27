@@ -14,7 +14,64 @@ export type UserRole = 'Dev' | 'QA' | 'Admin';
 
 export type ExecutionMode = 'github' | 'prompt';
 
-export type NavigationTab = 'dashboard' | 'prompt' | 'listagem' | 'detalhes' | 'users' | 'rtm';
+export type NavigationTab = 'dashboard' | 'prompt' | 'commits' | 'consistency' | 'listagem' | 'detalhes' | 'users' | 'rtm';
+
+/**
+ * Arquivo alterado em um Commit do GitHub com patch diff
+ */
+export interface GitHubCommitFile {
+  filename: string;
+  status: 'added' | 'modified' | 'removed' | 'renamed' | string;
+  additions: number;
+  deletions: number;
+  patch?: string;
+}
+
+/**
+ * Metadados detalhados de Commit do GitHub com arquivos e diff
+ */
+export interface GitHubCommitDetail {
+  sha: string;
+  shortSha: string;
+  message: string;
+  author: string;
+  date: string;
+  htmlUrl: string;
+  branch?: string;
+  files: GitHubCommitFile[];
+  summaryText?: string;
+  stats?: {
+    total: number;
+    additions: number;
+    deletions: number;
+  };
+}
+
+/**
+ * Auditoria de Consistência de DOM & Seletores Resilientes (Self-Healing)
+ */
+export interface DomSelectorAudit {
+  id: string;
+  elementTag: string;
+  rawSelector: string;
+  resilientSelector: string;
+  strategy: 'data-testid' | 'aria-landmark' | 'text-content' | 'visual-proximity' | 'hierarchical';
+  resilienceScore: number; // 0 a 100%
+  status: 'Robust' | 'Fragile' | 'Healed';
+  recommendation: string;
+}
+
+/**
+ * Relatório de Risco e Análise de Impacto do Commit (Quantum AI)
+ */
+export interface CommitRiskAssessment {
+  riskLevel: 'Baixo' | 'Médio' | 'Alto' | 'Crítico';
+  riskScore: number; // 0 a 100
+  affectedLayers: Array<'Frontend UI' | 'Backend API' | 'Banco de Dados' | 'Autenticação / JWT' | 'Regras de Negócio'>;
+  breakingChangeRisk: boolean;
+  recommendedDoD: string[];
+  summaryAnalysis: string;
+}
 
 /**
  * Caso / Passo de Teste Executável com DoD e múltiplos critérios

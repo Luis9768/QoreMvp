@@ -10,7 +10,9 @@ import {
   Server, 
   Database, 
   Sparkles,
-  Building 
+  Building,
+  Code2,
+  Eye
 } from 'lucide-react';
 import type { NavigationTab, UserRole } from '../types/qa';
 
@@ -42,7 +44,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
   const navItems: Array<{ id: NavigationTab; label: string; icon: React.ReactNode }> = [
     { id: 'dashboard', label: 'Dashboard', icon: <LineChart size={20} /> },
+    { id: 'commits', label: 'Análise de Commits (Diff)', icon: <Code2 size={20} /> },
     { id: 'prompt', label: 'Geração de Prompts', icon: <ClipboardList size={20} /> },
+    { id: 'consistency', label: 'Consistência de DOM & Visual', icon: <Eye size={20} /> },
     { id: 'detalhes', label: 'Detalhes do Teste (Player)', icon: <Video size={20} /> },
     { id: 'listagem', label: 'Histórico de Testes', icon: <ListChecks size={20} /> },
     { id: 'rtm', label: 'Matriz RTM (ISO 29119)', icon: <Table2 size={20} /> },

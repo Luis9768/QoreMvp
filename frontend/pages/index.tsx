@@ -8,6 +8,8 @@ import { TopHeader } from '../components/TopHeader';
 import { KPICards } from '../components/KPICards';
 import { DashboardOverview } from '../components/DashboardOverview';
 import { PromptGenerationView } from '../components/PromptGenerationView';
+import { CommitAnalysisView } from '../components/CommitAnalysisView';
+import { DomConsistencyView } from '../components/DomConsistencyView';
 import { ExecutionView } from '../components/ExecutionView';
 import { RTMView } from '../components/RTMView';
 import { RBACUsersView } from '../components/RBACUsersView';
@@ -18,6 +20,7 @@ import type {
   ExecutionMode, 
   TestStep, 
   GitHubCommitInfo, 
+  GitHubCommitDetail,
   TestAuthCredentials, 
   QualityGateSummary,
   StepStatus,
@@ -66,6 +69,8 @@ export default function Home() {
   const [availableBranches, setAvailableBranches] = useState<string[]>([]);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   const [recentCommits, setRecentCommits] = useState<GitHubCommitInfo[]>([]);
+  const [commitDetail, setCommitDetail] = useState<GitHubCommitDetail | null>(null);
+  const [isLoadingCommitDetail, setIsLoadingCommitDetail] = useState(false);
   const [isCommitPickerOpen, setIsCommitPickerOpen] = useState(false);
   const [isValidatingToken, setIsValidatingToken] = useState(false);
   const [tokenResult, setTokenResult] = useState<{ valid: boolean; user?: string; error?: string } | null>(null);
@@ -246,6 +251,32 @@ export default function Home() {
         },
       ]);
       setIsCommitPickerOpen(true);
+    }
+  };
+
+  const handleFetchCommitPreview = async (shaOverride?: string) => {
+    if (!githubUrl.trim()) return;
+    setIsLoadingCommitDetail(true);
+    const effectiveSha = shaOverride || commitSha || (recentCommits[0]?.sha ?? '');
+    try {
+      const res = await fetch(`${API_BASE}/github-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          githubUrl: githubUrl.trim(),
+          githubBranch: githubBranch.trim() || null,
+          commitSha: effectiveSha || null,
+          githubToken: githubToken.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCommitDetail(data);
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setIsLoadingCommitDetail(false);
     }
   };
 
@@ -631,6 +662,25 @@ ${(s.criteriosMinimos || [s.criterioMinimoDescricao || s.resultadoEsperado]).map
                 recentSuitesCount={1}
                 successRate={steps.length > 0 ? Math.round((passedCount / steps.length) * 100) : 0}
                 totalCriteriosDefinidos={totalCriteriosDefinidos}
+              />
+            )}
+
+            {currentTab === 'commits' && (
+              <CommitAnalysisView
+                commitDetail={commitDetail}
+                isLoading={isLoadingCommitDetail}
+                onSelectCommitToPlan={(sha) => {
+                  setCommitSha(sha);
+                  setCurrentTab('prompt');
+                }}
+                onRefreshCommitDiff={() => handleFetchCommitPreview()}
+                repoUrl={githubUrl}
+              />
+            )}
+
+            {currentTab === 'consistency' && (
+              <DomConsistencyView
+                targetUrl={targetUrl}
               />
             )}
 

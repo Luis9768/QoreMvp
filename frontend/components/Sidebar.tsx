@@ -14,7 +14,9 @@ import {
   Building,
   CheckCircle2,
   XCircle,
-  ExternalLink
+  ExternalLink,
+  Code2,
+  Eye
 } from 'lucide-react';
 import type { NavigationTab, UserRole } from '../types/qa';
 
@@ -50,16 +52,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Visão Geral'
     },
     {
+      id: 'commits',
+      label: 'Análise de Commits',
+      icon: <Code2 size={20} />,
+      badge: 'Git Diff & IA'
+    },
+    {
       id: 'prompt',
       label: 'Geração de Prompts',
       icon: <ClipboardList size={20} />,
-      badge: 'IA & Commits'
+      badge: 'Roteiros'
+    },
+    {
+      id: 'consistency',
+      label: 'Consistência de DOM',
+      icon: <Eye size={20} />,
+      badge: 'Self-Healing'
     },
     {
       id: 'detalhes',
       label: 'Detalhes do Teste',
       icon: <Video size={20} />,
-      badge: 'Player Playwright'
+      badge: 'Player MP4'
     },
     {
       id: 'listagem',
