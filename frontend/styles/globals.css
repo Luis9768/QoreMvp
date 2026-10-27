@@ -3,13 +3,65 @@
 @tailwind utilities;
 
 :root {
-  --background: #090d16;
-  --foreground: #f8fafc;
+  --qore-dark: #282D2F;
+  --qore-sidebar: #2D3133;
+  --qore-surface: #3C3F40;
+  --qore-canvas: #E5E8ED;
+  --qore-canvas-light: #F7F9FB;
+  --qore-card: #FFFFFF;
+  --qore-orange: #EA7913;
+  --qore-green: #49CC90;
+  --qore-red: #F93E3E;
+  --qore-blue: #61AFF2;
+  --qore-warning: #FCA130;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  color: var(--foreground);
-  background: radial-gradient(circle at 50% 0%, #15102a 0%, #090d16 60%);
+  color: #191C1E;
+  background-color: #E5E8ED;
+  font-family: 'Montserrat', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #E5E8ED;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #B0B7C3;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8E98A8;
+}
+
+/* Code and mono styling */
+code, pre, kbd {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Glass and elevation utilities */
+.qore-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.qore-glass-dark {
+  background: rgba(45, 49, 51, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
