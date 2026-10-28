@@ -6,7 +6,7 @@
   <title>Diagnóstico de Problema e Oportunidade — QORE ANALYTICS | SENAI 1.34</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
       --senai-blue: #005DAA;
@@ -475,51 +475,51 @@
         <tr>
           <td class="field-name">Contexto de ocorrência</td>
           <td class="field-value">
-            Ocorre em equipes de engenharia de software e garantia da qualidade (QA) responsáveis pelo ciclo contínuo de entrega de aplicações corporativas críticas (ERPs, CRMs, portais de autoatendimento e plataformas de comércio eletrônico). O problema manifesta-se nos fechamentos de ciclo (sprints), integrações de código (Pull Requests) e janelas de homologação pré-implantação, momento em que refatorações de código e alterações nas interfaces de usuário quebram rotinas automatizadas, exigindo extensas validações manuais de regressão.
+            Ocorre em equipes de desenvolvimento e QA responsáveis pela entrega contínua de sistemas corporativos. O problema acontece a cada sprint, commit ou deploy, quando alterações no código ou na interface quebram testes automatizados e exigem validações manuais demoradas.
           </td>
         </tr>
         <tr>
           <td class="field-name">Público afetado ou beneficiário</td>
           <td class="field-value">
-            <strong>Público afetado:</strong> Desenvolvedores de software e analistas de qualidade (sobrecarregados por testes repetitivos e falsos positivos gerados por testes instáveis) e gestores de tecnologia (impactados por atrasos no cronograma e aumento dos custos operacionais).<br>
-            <strong>Beneficiários:</strong> Organizações contratantes e usuários finais, beneficiados com soluções mais estáveis, menor tempo de resposta a incidentes e entregas contínuas confiáveis.
+            <strong>Público afetado:</strong> Desenvolvedores e analistas de QA (sobrecarregados com testes repetitivos e falsos positivos) e gestores de TI (afetados por atrasos e custos de retrabalho).<br>
+            <strong>Beneficiários:</strong> Empresas e usuários finais, com sistemas mais estáveis e menos falhas em produção.
           </td>
         </tr>
         <tr>
           <td class="field-name">Causas prováveis</td>
           <td class="field-value">
-            1. <strong>Instabilidade de seletores de interface:</strong> Tecnologias modernas de front-end geram identificadores e atributos dinâmicos que invalidam testes automatizados ponta a ponta convencionais (flaky tests).<br>
-            2. <strong>Inexistência de análise de impacto preditiva:</strong> Ausência de rastreamento entre as alterações efetuadas no controle de versão (Git) e os cenários de teste diretamente afetados.<br>
-            3. <strong>Fragmentação instrumental:</strong> Falta de padronização metodológica entre ferramentas isoladas de teste de API, interface e regras de negócio.<br>
-            4. <strong>Rigidez nos critérios de validação:</strong> Modelos estritamente binários que bloqueiam entregas devido a divergências visuais secundárias, ainda que os fluxos críticos de negócio estejam íntegros.<br>
-            5. <strong>Carência de auditoria visual centralizada:</strong> Falta de registros em vídeo e evidências automatizadas para diagnóstico rápido da causa-raiz de falhas.
+            • Mudanças frequentes no front-end que quebram seletores e geram falsos positivos nos testes automatizados.<br>
+            • Falta de identificação automática de quais testes precisam rodar a cada commit no Git.<br>
+            • Uso de ferramentas soltas e sem integração entre os testes de tela, API e regras de negócio.<br>
+            • Critérios de aceite rígidos demais, que reprovam entregas por detalhes visuais mesmo com o fluxo principal funcionando.<br>
+            • Ausência de gravações ou relatórios visuais claros para mostrar exatamente onde e por que o teste falhou.
           </td>
         </tr>
         <tr>
           <td class="field-name">Impactos observados</td>
           <td class="field-value">
-            • <strong>Produtivos:</strong> Desperdício de 35% a 50% do tempo de desenvolvimento em testes manuais de regressão e manutenção de scripts (consumo médio de 2 a 4 horas por entrega).<br>
-            • <strong>Econômicos:</strong> Custo elevado de horas técnicas dedicadas a tarefas operacionais repetitivas; o custo de correção de defeitos em produção é até 100 vezes superior ao custo na fase de testes.<br>
-            • <strong>Técnicos e Organizacionais:</strong> Redução da confiabilidade dos pipelines de integração contínua (CI/CD), taxa elevada de escape de defeitos para produção e sobrecarga nas equipes de tecnologia no fechamento de releases.
+            • <strong>Produtivos:</strong> Desperdício de 35% a 50% do tempo da equipe em validações manuais de regressão.<br>
+            • <strong>Econômicos:</strong> Custo alto de horas técnicas gastas em tarefas repetitivas; corrigir erros em produção custa muito mais do que na fase de testes.<br>
+            • <strong>Técnicos e Organizacionais:</strong> Falta de confiança nos testes automatizados, atrasos em entregas e sobrecarga de trabalho no fim das sprints.
           </td>
         </tr>
         <tr>
           <td class="field-name">Evidências utilizadas</td>
           <td class="field-value">
-            1. <strong>Testes laboratoriais empíricos:</strong> Experimentos com aplicações empresariais demonstrando que atualizações estruturais em interfaces invalidam suítes automatizadas preexistentes.<br>
-            2. <strong>Entrevistas com profissionais do setor:</strong> Levantamentos com analistas de qualidade e engenheiros de software confirmando o gargalo em baterias manuais repetitivas.<br>
-            3. <strong>Indicadores consolidados de mercado:</strong> Dados do <em>World Quality Report</em> atestando que até 35% do orçamento de tecnologia é consumido em validação e que testes instáveis causam perda média de 15 a 20 horas mensais por desenvolvedor.<br>
-            4. <strong>Métricas de repositórios técnicos:</strong> Registros apontando que a maioria das reprovações em esteiras automatizadas é decorrente de instabilidade de seletores de tela e não de falhas lógicas de negócio.
+            • Testes práticos em aplicações corporativas onde pequenas alterações visuais quebraram fluxos automatizados.<br>
+            • Relatos de desenvolvedores e analistas de QA sobre o tempo excessivo gasto refazendo testes manuais a cada sprint.<br>
+            • Dados de pesquisas do setor (como o <em>World Quality Report</em>) mostrando que até 35% do esforço de TI vai para validação e retrabalho.<br>
+            • Histórico de esteiras de CI/CD apontando alto índice de reprovações causadas por falha de seletores, e não por defeito real no código.
           </td>
         </tr>
         <tr>
           <td class="field-name">Oportunidade de inovação</td>
           <td class="field-value">
-            Desenvolvimento da plataforma <strong>QORE ANALYTICS</strong>, solução corporativa voltada à modernização da garantia de qualidade por meio de:<br>
-            • <strong>Análise preditiva de commits (Git Diff):</strong> Execução direcionada exclusivamente dos fluxos impactados por cada alteração, reduzindo o tempo de validação de horas para segundos.<br>
-            • <strong>Mecanismo de auto-recuperação (Self-Healing):</strong> Adaptação automática de seletores de interface diante de mudanças no código front-end.<br>
-            • <strong>Critérios Mínimos de Aceitação (DoD Flexível):</strong> Capacidade de validar e homologar fluxos centrais de negócio com emissão de alertas para divergências cosméticas secundárias.<br>
-            • <strong>Auditoria visual com rastreabilidade:</strong> Gravação integral em vídeo das execuções e geração automática de diagnósticos de causa-raiz (RCA).
+            Desenvolvimento da plataforma <strong>QORE ANALYTICS</strong>, que traz como diferenciais:<br>
+            • <strong>Análise de impacto por commit:</strong> Roda apenas os testes ligados ao código alterado no Git, economizando tempo.<br>
+            • <strong>Auto-recuperação de seletores:</strong> Corrige automaticamente seletores de tela quando o front-end muda.<br>
+            • <strong>Critérios mínimos de aceitação:</strong> Permite aprovar o fluxo principal de negócio com avisos para detalhes secundários.<br>
+            • <strong>Auditoria visual em vídeo:</strong> Grava o teste executado para comprovar falhas e facilitar a correção.
           </td>
         </tr>
       </tbody>
