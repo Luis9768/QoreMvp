@@ -11,7 +11,6 @@
     :root {
       --senai-blue: #005DAA;
       --senai-dark-blue: #004077;
-      --senai-light-blue: #E8F2FC;
       --qore-orange: #EA7913;
       --text-dark: #1E293B;
       --text-muted: #64748B;
@@ -30,14 +29,13 @@
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: var(--bg-page);
       color: var(--text-dark);
-      line-height: 1.6;
+      line-height: 1.55;
       padding: 30px 15px;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
 
-    /* Barra Superior de Ações (Oculta na Impressão) */
     .action-bar {
       width: 100%;
       max-width: 210mm;
@@ -47,27 +45,26 @@
       gap: 12px;
       background: #FFFFFF;
       border: 1px solid var(--border-color);
-      padding: 14px 24px;
-      border-radius: 12px;
-      margin-bottom: 24px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+      padding: 12px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
     .badge-info {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       font-size: 0.88rem;
       font-weight: 600;
       color: var(--senai-blue);
     }
 
     .badge-dot {
-      width: 10px;
-      height: 10px;
+      width: 9px;
+      height: 9px;
       border-radius: 50%;
       background-color: var(--qore-orange);
-      box-shadow: 0 0 8px rgba(234, 121, 19, 0.5);
     }
 
     .btn-group {
@@ -76,16 +73,15 @@
     }
 
     .btn {
-      padding: 9px 18px;
-      border-radius: 8px;
-      font-size: 0.88rem;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      transition: all 0.2s ease;
+      gap: 6px;
       border: none;
     }
 
@@ -94,54 +90,41 @@
       color: #FFFFFF;
     }
 
-    .btn-primary:hover {
-      background: var(--senai-dark-blue);
-      transform: translateY(-1px);
-    }
-
     .btn-outline {
       background: transparent;
       border: 1px solid var(--border-color);
       color: var(--text-dark);
     }
 
-    .btn-outline:hover {
-      background: #F1F5F9;
-    }
-
-    /* Folha A4 do Documento SENAI */
     .document-page {
       width: 100%;
       max-width: 210mm;
-      min-height: 297mm;
       background: var(--card-bg);
-      padding: 22mm 20mm;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      padding: 20mm 18mm;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
       border-radius: 4px;
       border: 1px solid #E2E8F0;
-      position: relative;
     }
 
-    /* Cabeçalho Institucional */
     .header-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       border-bottom: 3px solid var(--senai-blue);
-      padding-bottom: 16px;
+      padding-bottom: 12px;
     }
 
     .header-table td {
       vertical-align: middle;
-      padding-bottom: 14px;
+      padding-bottom: 10px;
     }
 
     .logo-senai-box {
-      width: 140px;
+      width: 130px;
     }
 
     .logo-senai-svg {
-      width: 130px;
+      width: 120px;
       height: auto;
     }
 
@@ -151,115 +134,92 @@
 
     .header-text h3 {
       font-family: 'Montserrat', sans-serif;
-      font-size: 1.05rem;
+      font-size: 1rem;
       color: var(--senai-blue);
       font-weight: 800;
-      letter-spacing: 0.5px;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .header-text p {
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
-      margin-top: 3px;
+      margin-top: 2px;
     }
 
-    /* Bloco Explicativo da Ferramenta */
     .tool-info-grid {
       display: grid;
       grid-template-columns: 1fr 2fr 1.2fr;
-      gap: 12px;
+      gap: 10px;
       background: #F8FAFC;
       border: 1px solid #E2E8F0;
-      border-radius: 8px;
-      padding: 14px 18px;
-      margin-bottom: 20px;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
     }
 
     .tool-info-col h4 {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
       color: var(--text-muted);
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       font-weight: 700;
     }
 
     .tool-info-col p {
-      font-size: 0.88rem;
+      font-size: 0.84rem;
       color: var(--text-dark);
       font-weight: 600;
     }
 
-    /* Ponto de Atenção Alerta */
     .attention-box {
       background: #FFFBEB;
       border-left: 4px solid #F59E0B;
       border-right: 1px solid #FDE68A;
       border-top: 1px solid #FDE68A;
       border-bottom: 1px solid #FDE68A;
-      padding: 12px 16px;
-      border-radius: 0 8px 8px 0;
-      margin-bottom: 24px;
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-    }
-
-    .attention-badge {
-      background: #F59E0B;
-      color: #FFFFFF;
-      font-size: 0.7rem;
-      font-weight: 800;
-      padding: 3px 8px;
-      border-radius: 4px;
-      text-transform: uppercase;
-      white-space: nowrap;
-      margin-top: 2px;
-    }
-
-    .attention-text {
-      font-size: 0.85rem;
+      padding: 10px 14px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 20px;
+      font-size: 0.83rem;
       color: #92400E;
       line-height: 1.45;
     }
 
-    /* Título do Diagnóstico */
     .section-title {
       font-family: 'Montserrat', sans-serif;
-      font-size: 1.25rem;
+      font-size: 1.15rem;
       font-weight: 800;
       color: var(--senai-blue);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .section-title::before {
       content: '';
       display: inline-block;
-      width: 6px;
-      height: 20px;
+      width: 5px;
+      height: 18px;
       background: var(--qore-orange);
       border-radius: 2px;
     }
 
-    /* Tabela do Template SENAI */
     .template-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       border: 1px solid #CBD5E1;
-      font-size: 0.88rem;
+      font-size: 0.84rem;
     }
 
     .template-table th, 
     .template-table td {
       border: 1px solid #CBD5E1;
-      padding: 12px 16px;
+      padding: 10px 14px;
       vertical-align: top;
     }
 
@@ -269,129 +229,69 @@
       font-family: 'Montserrat', sans-serif;
       font-weight: 700;
       text-transform: uppercase;
-      font-size: 0.82rem;
-      letter-spacing: 0.5px;
+      font-size: 0.8rem;
       text-align: left;
     }
 
     .template-table th:first-child {
-      width: 26%;
+      width: 25%;
     }
 
     .template-table th:last-child {
-      width: 74%;
+      width: 75%;
     }
 
     .field-name {
       font-weight: 700;
       color: #0F172A;
       background: #F1F5F9;
-      font-size: 0.85rem;
     }
 
     .field-value {
       color: #1E293B;
-      line-height: 1.55;
+      line-height: 1.5;
     }
 
     .field-value p {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .field-value p:last-child {
       margin-bottom: 0;
     }
 
-    .field-value ul {
-      margin-left: 20px;
-      margin-top: 6px;
-      margin-bottom: 6px;
-    }
-
-    .field-value li {
-      margin-bottom: 4px;
-    }
-
-    .highlight-problem {
-      font-weight: 700;
-      color: var(--senai-blue);
-      font-size: 0.95rem;
-    }
-
     .team-badge-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 5px;
       margin-top: 4px;
     }
 
     .team-badge {
       background: #E2E8F0;
       color: #1E293B;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
-      padding: 3px 8px;
+      padding: 2px 7px;
       border-radius: 4px;
       border: 1px solid #CBD5E1;
     }
 
-    /* Regras de Preenchimento Box */
-    .rules-card {
-      background: #F8FAFC;
-      border: 1px solid #E2E8F0;
-      border-radius: 8px;
-      padding: 14px 18px;
-      margin-bottom: 24px;
-    }
-
-    .rules-title {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: #334155;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 8px;
-    }
-
-    .rules-list {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      font-size: 0.82rem;
-      color: #475569;
-      list-style-type: none;
-    }
-
-    .rules-list li {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .rules-list li::before {
-      content: '✔';
-      color: #10B981;
-      font-weight: 900;
-    }
-
-    /* Checklist Final */
     .checklist-container {
       background: #FFFFFF;
       border: 2px solid var(--senai-blue);
-      border-radius: 8px;
-      padding: 16px 20px;
+      border-radius: 6px;
+      padding: 14px 18px;
       margin-top: 10px;
     }
 
     .checklist-title {
       font-family: 'Montserrat', sans-serif;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 800;
       color: var(--senai-blue);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -400,132 +300,100 @@
     .checklist-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 8px;
     }
 
     .check-item {
       display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      font-size: 0.85rem;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
       color: #1E293B;
     }
 
     .check-box {
-      width: 18px;
-      height: 18px;
-      border-radius: 4px;
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
       background: var(--senai-blue);
       color: #FFFFFF;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 800;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       flex-shrink: 0;
-      margin-top: 2px;
     }
 
-    /* Assinaturas Rodapé */
     .signatures-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 40px;
-      margin-top: 36px;
-      padding-top: 20px;
+      gap: 36px;
+      margin-top: 28px;
+      padding-top: 16px;
     }
 
     .sig-line {
       border-top: 1px solid #94A3B8;
       text-align: center;
-      padding-top: 6px;
-      font-size: 0.8rem;
+      padding-top: 5px;
+      font-size: 0.78rem;
       color: var(--text-dark);
       font-weight: 600;
     }
 
     .sig-role {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       color: var(--text-muted);
       font-weight: 400;
     }
 
-    /* Estilos de Impressão (A4) */
     @media print {
       body {
         background: transparent !important;
         padding: 0 !important;
       }
-
       .action-bar {
         display: none !important;
       }
-
       .document-page {
         box-shadow: none !important;
         border: none !important;
-        padding: 10mm 15mm !important;
+        padding: 8mm 12mm !important;
         max-width: 100% !important;
-        min-height: auto !important;
       }
-
-      .template-table th {
+      .template-table th, .check-box {
         background-color: #005DAA !important;
         color: #FFFFFF !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
-
       .field-name {
         background-color: #F1F5F9 !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
-
-      .attention-box {
-        background-color: #FFFBEB !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-
-      .check-box {
-        background-color: #005DAA !important;
-        color: #FFFFFF !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-
       @page {
         size: A4 portrait;
-        margin: 12mm 10mm;
+        margin: 10mm 8mm;
       }
     }
   </style>
 </head>
 <body>
 
-  <!-- Barra de Ações (Oculta na Impressão) -->
   <div class="action-bar">
     <div class="badge-info">
       <span class="badge-dot"></span>
       <span>SENAI 1.34 • Diagnóstico de Problema e Oportunidade</span>
     </div>
     <div class="btn-group">
-      <a href="capa_tcc_senai.html" class="btn btn-outline" target="_blank">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-        Ver Capa do TCC
-      </a>
-      <button onclick="window.print()" class="btn btn-primary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-        Exportar / Imprimir em PDF (Ctrl + P)
-      </button>
+      <a href="capa_tcc_senai.html" class="btn btn-outline" target="_blank">Ver Capa do TCC</a>
+      <button onclick="window.print()" class="btn btn-primary">Exportar / Imprimir em PDF (Ctrl + P)</button>
     </div>
   </div>
 
-  <!-- Documento Oficial SENAI -->
   <div class="document-page">
-    
-    <!-- Cabeçalho Oficial -->
     <table class="header-table">
       <tr>
         <td class="logo-senai-box">
@@ -542,7 +410,6 @@
       </tr>
     </table>
 
-    <!-- Resumo da Ferramenta de Análise -->
     <div class="tool-info-grid">
       <div class="tool-info-col">
         <h4>FERRAMENTA</h4>
@@ -558,18 +425,12 @@
       </div>
     </div>
 
-    <!-- Ponto de Atenção -->
     <div class="attention-box">
-      <span class="attention-badge">Ponto de Atenção</span>
-      <div class="attention-text">
-        <strong>Um bom diagnóstico não começa pela ideia da solução.</strong> Ele comprova a relevância e a gravidade do problema no contexto real, respaldado por dados e evidências, orientando de forma fundamentada as decisões técnicas posteriores.
-      </div>
+      <strong>Ponto de Atenção:</strong> Um bom diagnóstico não começa pela ideia da solução. Ele comprova a relevância e a gravidade do problema no contexto corporativo real com dados e evidências objetivas, orientando decisões técnicas posteriores.
     </div>
 
-    <!-- Título da Seção -->
     <div class="section-title">Template de Delimitação do Diagnóstico</div>
 
-    <!-- Tabela Principal Preenchida com Rigor Técnico -->
     <table class="template-table">
       <thead>
         <tr>
@@ -580,15 +441,12 @@
       <tbody>
         <tr>
           <td class="field-name">Nome do projeto</td>
-          <td class="field-value">
-            <strong style="color: var(--senai-blue); font-size: 1.05rem; letter-spacing: 0.5px;">QORE ANALYTICS</strong>
-            <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Plataforma Unificada de QA Analytics, Análise de Impacto por Commits e Self-Healing de Testes</span>
-          </td>
+          <td class="field-value"><strong>QORE ANALYTICS</strong></td>
         </tr>
         <tr>
           <td class="field-name">Nome da equipe</td>
           <td class="field-value">
-            <strong>Equipe Qore Analytics (Squad de QA & Engenharia)</strong>
+            <strong>Equipe Qore Analytics</strong>
             <div class="team-badge-list">
               <span class="team-badge">Luis Miguel</span>
               <span class="team-badge">Allan Barbosa</span>
@@ -612,124 +470,76 @@
         </tr>
         <tr>
           <td class="field-name">Problema ou oportunidade identificada</td>
-          <td class="field-value">
-            <span class="highlight-problem">Otimização da validação dos testes de sistemas corporativos</span>
-            <p style="font-size: 0.85rem; color: #475569; margin-top: 4px;">
-              Gargalo estrutural de tempo, fragilidade de seletores e retrabalho constante enfrentado por equipes de tecnologia durante os ciclos de validação funcional e regressão em aplicações empresariais críticas.
-            </p>
-          </td>
+          <td class="field-value"><strong>Otimização da validação dos testes de sistemas corporativos</strong></td>
         </tr>
         <tr>
           <td class="field-name">Contexto de ocorrência</td>
           <td class="field-value">
-            <p><strong>Onde:</strong> Em squads de engenharia de software e garantia de qualidade (QA) de empresas de tecnologia e corporações que sustentam múltiplos sistemas distribuídos (ex.: aplicações web corporativas, portais de autoatendimento e plataformas de e-commerce e agendamento como <em>AfroKings BarberShop</em> e <em>RoyalGames</em> avaliadas no projeto piloto).</p>
-            <p><strong>Com quem:</strong> Desenvolvedores fullstack/backend/frontend, Analistas de Testes (QAs), Tech Leads e Product Owners.</p>
-            <p><strong>Quando:</strong> A cada entrega de funcionalidade (fechamento de <em>sprints</em> quinzenais), submissão de <em>Pull Requests</em> (commits no repositório) e janelas de homologação pré-deploy em ambientes de produção.</p>
-            <p><strong>Em que situação:</strong> Quando alterações simples no código de interface (HTML/DOM dinâmico gerado por React/Next.js) ou refatorações de endpoints de API quebram suítes automatizadas legadas, forçando os profissionais a executarem validações manuais repetitivas para evitar o vazamento de bugs aos clientes.</p>
+            Ocorre em equipes de engenharia de software e garantia da qualidade (QA) responsáveis pelo ciclo contínuo de entrega de aplicações corporativas críticas (ERPs, CRMs, portais de autoatendimento e plataformas de comércio eletrônico). O problema manifesta-se nos fechamentos de ciclo (sprints), integrações de código (Pull Requests) e janelas de homologação pré-implantação, momento em que refatorações de código e alterações nas interfaces de usuário quebram rotinas automatizadas, exigindo extensas validações manuais de regressão.
           </td>
         </tr>
         <tr>
           <td class="field-name">Público afetado ou beneficiário</td>
           <td class="field-value">
-            <p><strong>1. Profissionais de Engenharia de Software (Desenvolvedores):</strong> Sofrem com interrupções frequentes para investigar falhas de testes que não são bugs de regra de negócio, mas meras incompatibilidades cosméticas de seletores ou testes instáveis (<em>flaky tests</em>).</p>
-            <p><strong>2. Analistas de Qualidade e Testadores (QA):</strong> Sobrecarregados com rotinas repetitivas de testes manuais ponto a ponto, gastando energia em formulários e rotas em vez de focarem em testes estratégicos de segurança e performance.</p>
-            <p><strong>3. Gestores de TI, Scrum Masters e Product Owners (PO):</strong> Enfrentam atrasos recorrentes no cronograma de lançamento (<em>time-to-market</em>), aumentos no custo homem-hora por sprint e atritos internos provocados pelo famoso embate: <em>"na minha máquina funciona"</em>.</p>
-            <p><strong>4. Empresas e Usuários Finais (Beneficiários Diretos):</strong> Ganham sistemas corporativos com maior estabilidade, menor índice de falhas em produção e ciclos ágeis de atualização sem interrupções operacionais.</p>
+            <strong>Público afetado:</strong> Desenvolvedores de software e analistas de qualidade (sobrecarregados por testes repetitivos e falsos positivos gerados por testes instáveis) e gestores de tecnologia (impactados por atrasos no cronograma e aumento dos custos operacionais).<br>
+            <strong>Beneficiários:</strong> Organizações contratantes e usuários finais, beneficiados com soluções mais estáveis, menor tempo de resposta a incidentes e entregas contínuas confiáveis.
           </td>
         </tr>
         <tr>
           <td class="field-name">Causas prováveis</td>
           <td class="field-value">
-            <ul>
-              <li><strong>Alta volatilidade do DOM em aplicações modernas:</strong> Frameworks frontend modernos (React, Next.js, Vue) geram identificadores e classes CSS de forma dinâmica em tempo de build/execução. Isso faz com que testes E2E tradicionais (Selenium/Cypress estáticos) quebrem frequentemente devido a seletores frágeis (*flaky tests*).</li>
-              <li><strong>Ausência de análise de impacto preditiva por commit:</strong> A cada alteração no repositório Git, as equipes executam testes às cegas ou precisam retestar todo o monólito/serviço manualmente, por falta de rastreamento inteligente entre as linhas de código modificadas e os fluxos de teste correspondentes.</li>
-              <li><strong>Despadronização e fragmentação de ferramentas ("Torre de Babel"):</strong> Desenvolvedores validam rotas isoladas via Swagger/Postman, QAs utilizam planilhas ou scripts independentes e a área de negócios testa no navegador sem evidências centralizadas ou linguagem comum.</li>
-              <li><strong>Inflexibilidade na validação de critérios de aceitação:</strong> Abordagem rígida e binária (tudo passa ou tudo falha), onde uma falha irrelevante de espaçamento ou componente secundário reprova e bloqueia um deploy crítico de negócio que já atingiu todos os seus Critérios Mínimos de Aceitação essenciais.</li>
-              <li><strong>Ausência de auditoria visual centralizada:</strong> Relatórios de teste em texto plano ou logs de terminal crípticos que não gravam a tela nem provam visualmente o comportamento da aplicação no momento exato do erro.</li>
-            </ul>
+            1. <strong>Instabilidade de seletores de interface:</strong> Tecnologias modernas de front-end geram identificadores e atributos dinâmicos que invalidam testes automatizados ponta a ponta convencionais (flaky tests).<br>
+            2. <strong>Inexistência de análise de impacto preditiva:</strong> Ausência de rastreamento entre as alterações efetuadas no controle de versão (Git) e os cenários de teste diretamente afetados.<br>
+            3. <strong>Fragmentação instrumental:</strong> Falta de padronização metodológica entre ferramentas isoladas de teste de API, interface e regras de negócio.<br>
+            4. <strong>Rigidez nos critérios de validação:</strong> Modelos estritamente binários que bloqueiam entregas devido a divergências visuais secundárias, ainda que os fluxos críticos de negócio estejam íntegros.<br>
+            5. <strong>Carência de auditoria visual centralizada:</strong> Falta de registros em vídeo e evidências automatizadas para diagnóstico rápido da causa-raiz de falhas.
           </td>
         </tr>
         <tr>
           <td class="field-name">Impactos observados</td>
           <td class="field-value">
-            <p><strong>• Impacto Produtivo / Tempo:</strong> Equipes despendem entre <strong>35% a 50% das horas úteis da sprint</strong> em baterias repetitivas de testes manuais e manutenção contínua de scripts de automação quebrados. Homologações manuais consomem de 2 a 4 horas por feature antes do deploy.</p>
-            <p><strong>• Impacto Econômico / Financeiro:</strong> Desperdício de horas técnicas altamente remuneradas (desenvolvedores e QAs seniores) em atividades mecânicas de baixo valor agregado. Além disso, segundo estudos do setor (ex.: NIST e IBM), corrigir um defeito que escapa para produção custa até <strong>100 vezes mais</strong> do que corrigi-lo durante a fase de validação pré-deploy.</p>
-            <p><strong>• Impacto Técnico / Qualidade:</strong> Alta taxa de escape de defeitos (*bug escape rate*), acúmulo de débito técnico em testes automatizados obsoletos e redução drástica da cobertura efetiva de testes.</p>
-            <p><strong>• Impacto Social e de Equipe:</strong> Sobrecarga de trabalho, estresse crônico nas vésperas de fechamento de release, realização sistemática de horas extras não programadas e desgaste no relacionamento interpessoal entre squads de desenvolvimento e controle de qualidade.</p>
+            • <strong>Produtivos:</strong> Desperdício de 35% a 50% do tempo de desenvolvimento em testes manuais de regressão e manutenção de scripts (consumo médio de 2 a 4 horas por entrega).<br>
+            • <strong>Econômicos:</strong> Custo elevado de horas técnicas dedicadas a tarefas operacionais repetitivas; o custo de correção de defeitos em produção é até 100 vezes superior ao custo na fase de testes.<br>
+            • <strong>Técnicos e Organizacionais:</strong> Redução da confiabilidade dos pipelines de integração contínua (CI/CD), taxa elevada de escape de defeitos para produção e sobrecarga nas equipes de tecnologia no fechamento de releases.
           </td>
         </tr>
         <tr>
           <td class="field-name">Evidências utilizadas</td>
           <td class="field-value">
-            <p><strong>1. Experimentação Prática em Sistemas Reais:</strong> Testes laboratoriais conduzidos no âmbito do projeto com os sistemas <em>AfroKings BarberShop</em> (Spring Boot + PostgreSQL + React) e <em>RoyalGames</em> (.NET Core + Next.js), comprovando empiricamente que pequenas refatorações em nós do DOM e contratos de payload invalidavam suítes de teste prévias.</p>
-            <p><strong>2. Levantamento Qualitativo e Persona:</strong> Mapeamento do perfil profissional (Proto-Persona: Joelinton Cassio, 27 anos, Analista de Sistemas / QA), evidenciando a rotina de desgaste com testes manuais repetitivos, horas extras no final da sprint e dificuldade de demonstrar evidências irrefutáveis de falhas.</p>
-            <p><strong>3. Métricas e Literatura Especializada:</strong> Dados consolidados do <em>World Quality Report</em> e <em>GitLab Global DevSecOps Survey</em>, que atestam que até 35% do orçamento total de projetos de software é alocado em garantia de qualidade e que <em>flaky tests</em> causam perda média de 15 a 20 horas mensais por engenheiro.</p>
-            <p><strong>4. Histórico de Repositório e Commits:</strong> Análise de diffs de código demonstrando que mais de 60% dos testes reprovados em esteiras de integração contínua (CI) correspondem a falsos positivos decorrentes de seletores visuais alterados, e não a defeitos reais nas regras de negócio.</p>
+            1. <strong>Testes laboratoriais empíricos:</strong> Experimentos com aplicações empresariais demonstrando que atualizações estruturais em interfaces invalidam suítes automatizadas preexistentes.<br>
+            2. <strong>Entrevistas com profissionais do setor:</strong> Levantamentos com analistas de qualidade e engenheiros de software confirmando o gargalo em baterias manuais repetitivas.<br>
+            3. <strong>Indicadores consolidados de mercado:</strong> Dados do <em>World Quality Report</em> atestando que até 35% do orçamento de tecnologia é consumido em validação e que testes instáveis causam perda média de 15 a 20 horas mensais por desenvolvedor.<br>
+            4. <strong>Métricas de repositórios técnicos:</strong> Registros apontando que a maioria das reprovações em esteiras automatizadas é decorrente de instabilidade de seletores de tela e não de falhas lógicas de negócio.
           </td>
         </tr>
         <tr>
           <td class="field-name">Oportunidade de inovação</td>
           <td class="field-value">
-            <p>A partir do diagnóstico delimitado, surge a oportunidade de desenvolver a <strong>QORE ANALYTICS</strong>: uma plataforma unificada de testes e inteligência preditiva para sistemas corporativos, cujas inovações fundamentais contemplam:</p>
-            <ul>
-              <li><strong>Análise Preditiva de Commits (Git Diff Intelligence):</strong> Mapeamento automático dos arquivos e métodos modificados em cada Pull Request, executando seletivamente apenas os casos de teste estritamente correlacionados, reduzindo o tempo de validação de horas para cerca de 30 segundos.</li>
-              <li><strong>Mecanismo de Self-Healing para Seletores DOM:</strong> Algoritmo inteligente que analisa a árvore sintática e atributos semânticos da interface, recalculando seletores automaticamente caso uma classe ou ID mude, eliminando o problema dos testes instáveis (*flaky tests*).</li>
-              <li><strong>Suporte a Múltiplos Critérios Mínimos de Aceitação (DoD Flexível):</strong> Possibilidade de configurar regras de tolerância operacional, onde o sistema aprova o fluxo essencial de negócio (ex.: transação concluída com sucesso) mesmo diante de avisos cosméticos não bloqueantes.</li>
-              <li><strong>Auditoria Visual com Gravação Nativa Playwright (.webm) e Causa-Raiz (RCA):</strong> Geração de laudos executivos automáticos acompanhados de gravação em vídeo de alta fidelidade e diagnóstico que aponta a linha exata e a causa-raiz da reprovação, encerrando a discussão <em>"na minha máquina funciona"</em> e restabelecendo a confiança nas entregas.</li>
-            </ul>
+            Desenvolvimento da plataforma <strong>QORE ANALYTICS</strong>, solução corporativa voltada à modernização da garantia de qualidade por meio de:<br>
+            • <strong>Análise preditiva de commits (Git Diff):</strong> Execução direcionada exclusivamente dos fluxos impactados por cada alteração, reduzindo o tempo de validação de horas para segundos.<br>
+            • <strong>Mecanismo de auto-recuperação (Self-Healing):</strong> Adaptação automática de seletores de interface diante de mudanças no código front-end.<br>
+            • <strong>Critérios Mínimos de Aceitação (DoD Flexível):</strong> Capacidade de validar e homologar fluxos centrais de negócio com emissão de alertas para divergências cosméticas secundárias.<br>
+            • <strong>Auditoria visual com rastreabilidade:</strong> Gravação integral em vídeo das execuções e geração automática de diagnósticos de causa-raiz (RCA).
           </td>
         </tr>
       </tbody>
     </table>
 
-    <!-- Regras de Preenchimento -->
-    <div class="rules-card">
-      <div class="rules-title">Regras de Preenchimento Atendidas</div>
-      <ul class="rules-list">
-        <li>Problema descrito antes da proposição da solução</li>
-        <li>Evidências reais baseadas em sistemas avaliados e literatura</li>
-        <li>Eliminação de generalizações com dados objetivos</li>
-        <li>Delimitação precisa de público, contexto e impactos</li>
-        <li>Perfeita coerência com a proposta de valor do projeto</li>
-        <li>Formatado conforme diretrizes pedagógicas do SENAI</li>
-      </ul>
-    </div>
-
-    <!-- Checklist Final -->
     <div class="checklist-container">
       <div class="checklist-title">
         <span>Checklist de Validação Final do Diagnóstico</span>
-        <span style="font-size: 0.78rem; color: #10B981; font-weight: 700;">✔ 100% CONCLUÍDO</span>
+        <span style="font-size: 0.75rem; color: #10B981;">✔ CONCLUÍDO</span>
       </div>
       <div class="checklist-grid">
-        <div class="check-item">
-          <div class="check-box">✓</div>
-          <div><strong>Problema delimitado com clareza:</strong> Otimização da validação e fragilidade dos testes em sistemas corporativos.</div>
-        </div>
-        <div class="check-item">
-          <div class="check-box">✓</div>
-          <div><strong>Público afetado identificado:</strong> Desenvolvedores, Analistas de QA, Tech Leads, POs e clientes finais.</div>
-        </div>
-        <div class="check-item">
-          <div class="check-box">✓</div>
-          <div><strong>Causas e impactos descritos:</strong> Causas técnicas (DOM dinâmico, falta de análise de commits) e impactos mensurados (35-50% sprint).</div>
-        </div>
-        <div class="check-item">
-          <div class="check-box">✓</div>
-          <div><strong>Evidências registradas:</strong> Testes práticos laboratoriais (AfroKings e RoyalGames), dados do World Quality Report e persona.</div>
-        </div>
-        <div class="check-item">
-          <div class="check-box">✓</div>
-          <div><strong>Oportunidade de inovação apresentada:</strong> Plataforma Qore Analytics com self-healing, análise de commits e critérios flexíveis.</div>
-        </div>
-        <div class="check-item">
-          <div class="check-box">✓</div>
-          <div><strong>Arquivo identificado e exportado:</strong> Estruturado para Word e PDF com formatação institucional do SENAI 1.34.</div>
-        </div>
+        <div class="check-item"><div class="check-box">✓</div>Problema delimitado com clareza.</div>
+        <div class="check-item"><div class="check-box">✓</div>Público afetado identificado.</div>
+        <div class="check-item"><div class="check-box">✓</div>Causas e impactos descritos.</div>
+        <div class="check-item"><div class="check-box">✓</div>Evidências registradas.</div>
+        <div class="check-item"><div class="check-box">✓</div>Oportunidade de inovação apresentada.</div>
+        <div class="check-item"><div class="check-box">✓</div>Arquivo identificado e pronto para PDF.</div>
       </div>
     </div>
 
-    <!-- Assinaturas Formais -->
     <div class="signatures-row">
       <div class="sig-line">
         Samanta Melissa Nascimento
@@ -740,7 +550,6 @@
         <div class="sig-role">Luis Miguel, Allan Barbosa, Raphael Aljona, Antonio Carlos, Pedro Augusto</div>
       </div>
     </div>
-
   </div>
 
 </body>
