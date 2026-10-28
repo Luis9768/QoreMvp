@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Capa de Trabalho TCC | Qore Analytics - SENAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,800;1,900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --senai-blue: #005DAA;
+      --senai-blue-dark: #004587;
+      --senai-blue-light: #E6F0FA;
+      --qore-orange: #EA7913;
+      --qore-orange-light: #FFE3C9;
+      --qore-orange-dark: #944A00;
+      --qore-dark: #282D2F;
+      --qore-dark-surface: #2D3133;
+      --qore-dark-card: #3C3F40;
+      --qore-canvas: #E5E8ED;
+      --qore-white: #FFFFFF;
+      --qore-green: #49CC90;
+      --qore-gray: #565E74;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Montserrat', 'Inter', sans-serif;
+      background-color: #0F1214;
+      color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 15px;
+      min-height: 100vh;
+    }
+
+    /* Barra Superior de Controles (Não aparece na impressão) */
+    .toolbar {
+      width: 100%;
+      max-width: 210mm;
+      background: #1E2224;
+      border: 1px solid #3C3F40;
+      padding: 14px 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .toolbar-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #D8DADC;
+    }
+
+    .toolbar-info strong {
+      color: var(--qore-orange);
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--senai-blue);
+      color: #FFFFFF;
+      box-shadow: 0 2px 10px rgba(0, 93, 170, 0.35);
+    }
+
+    .btn-primary:hover {
+      background: var(--senai-blue-dark);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #2D3133;
+      color: #FFFFFF;
+      border: 1px solid #4A5054;
+    }
+
+    .btn-secondary:hover {
+      background: #3C3F40;
+    }
+
+    .btn-orange {
+      background: var(--qore-orange);
+      color: #FFFFFF;
+      box-shadow: 0 2px 10px rgba(234, 121, 19, 0.35);
+    }
+
+    .btn-orange:hover {
+      background: #D56A0C;
+    }
+
+    /* Container A4 da Capa (Dimensões exatas: 210mm x 297mm) */
+    .a4-page {
+      width: 210mm;
+      min-height: 297mm;
+      height: 297mm;
+      background: #282D2F;
+      position: relative;
+      overflow: hidden;
+      padding: 22mm 22mm 20mm 22mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 15px 45px rgba(0, 0, 0, 0.6);
+      border-radius: 4px;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    /* Tema Formal Acadêmico (Branco com Detalhes Figma) */
+    .theme-academic {
+      background: #FFFFFF !important;
+      color: #191C1E !important;
+    }
+
+    .theme-academic .header-sub {
+      color: #565E74 !important;
+    }
+
+    .theme-academic .title-main {
+      color: #191C1E !important;
+    }
+
+    .theme-academic .title-sub {
+      color: #2D3133 !important;
+      border-left-color: var(--senai-blue) !important;
+    }
+
+    .theme-academic .problem-box {
+      background: #F4F6F9 !important;
+      border-color: #D8DADC !important;
+      color: #2D3133 !important;
+    }
+
+    .theme-academic .badge-item {
+      background: #F1F4F8 !important;
+      color: #191C1E !important;
+      border-color: #D8DADC !important;
+    }
+
+    .theme-academic .tech-badge {
+      background: #FFFFFF !important;
+      border-color: #D8DADC !important;
+      color: #3C3F40 !important;
+    }
+
+    .theme-academic .authors-box {
+      border-top-color: #D8DADC !important;
+    }
+
+    .theme-academic .author-name {
+      color: #191C1E !important;
+    }
+
+    .theme-academic .advisor-label {
+      color: #565E74 !important;
+    }
+
+    .theme-academic .footer-date {
+      color: #565E74 !important;
+    }
+
+    .theme-academic .geometric-accent-1 {
+      opacity: 0.12 !important;
+    }
+
+    .theme-academic .geometric-accent-2 {
+      opacity: 0.08 !important;
+    }
+
+    /* Fundo Geométrico / Grid do Figma */
+    .bg-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        linear-gradient(rgba(234, 121, 19, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(234, 121, 19, 0.03) 1px, transparent 1px);
+      background-size: 20mm 20mm;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Faixas Geométricas Decorativas inspiradas no Figma */
+    .geometric-accent-1 {
+      position: absolute;
+      top: -80px;
+      right: -80px;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(0, 93, 170, 0.3) 0%, rgba(234, 121, 19, 0.2) 60%, transparent 80%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      filter: blur(20px);
+    }
+
+    .geometric-accent-2 {
+      position: absolute;
+      bottom: -60px;
+      left: -60px;
+      width: 240px;
+      height: 240px;
+      background: radial-gradient(circle, rgba(234, 121, 19, 0.25) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      filter: blur(25px);
+    }
+
+    .corner-border-tl {
+      position: absolute;
+      top: 10mm;
+      left: 10mm;
+      width: 15mm;
+      height: 15mm;
+      border-top: 3px solid var(--senai-blue);
+      border-left: 3px solid var(--senai-blue);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .corner-border-br {
+      position: absolute;
+      bottom: 10mm;
+      right: 10mm;
+      width: 15mm;
+      height: 15mm;
+      border-bottom: 3px solid var(--qore-orange);
+      border-right: 3px solid var(--qore-orange);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Conteúdo Principal */
+    .cover-content {
+      position: relative;
+      z-index: 3;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* CABEÇALHO: SENAI */
+    .header-institution {
+      text-align: center;
+      padding-bottom: 16px;
+      border-bottom: 2px solid rgba(0, 93, 170, 0.25);
+    }
+
+    .senai-logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    /* NOME DO SENAI EM AZUL OFICIAL COM ALTO DESTAQUE */
+    .senai-brand-title {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 900;
+      font-style: italic;
+      font-size: 42px;
+      letter-spacing: 3px;
+      color: var(--senai-blue);
+      text-shadow: 0 2px 10px rgba(0, 93, 170, 0.2);
+      display: inline-block;
+      line-height: 1;
+    }
+
+    .header-sub {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #A0AAB5;
+      margin-top: 6px;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .header-course {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--senai-blue);
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* MIOLO CENTRAL: IDENTIDADE DO PROJETO */
+    .center-section {
+      text-align: center;
+      margin: auto 0;
+      padding: 10px 0;
+    }
+
+    /* Ícone Minimalista Qore Analytics (Figma Inspired) */
+    .brand-mark {
+      width: 74px;
+      height: 74px;
+      background: linear-gradient(135deg, var(--qore-dark-surface) 0%, #1A1D1E 100%);
+      border: 2px solid var(--qore-orange);
+      border-radius: 18px;
+      margin: 0 auto 18px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px rgba(234, 121, 19, 0.25), inset 0 2px 4px rgba(255, 255, 255, 0.1);
+      position: relative;
+    }
+
+    .brand-mark::after {
+      content: '';
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 14px;
+      height: 14px;
+      background: var(--senai-blue);
+      border-radius: 50%;
+      border: 2px solid #282D2F;
+    }
+
+    .brand-mark-letter {
+      font-size: 38px;
+      font-weight: 900;
+      color: var(--qore-orange);
+      font-family: 'Montserrat', sans-serif;
+      line-height: 1;
+    }
+
+    .brand-category-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(234, 121, 19, 0.12);
+      border: 1px solid rgba(234, 121, 19, 0.4);
+      color: var(--qore-orange);
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 12px;
+    }
+
+    .title-main {
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      color: #FFFFFF;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .title-main span {
+      color: var(--qore-orange);
+    }
+
+    .title-sub {
+      font-size: 15px;
+      font-weight: 500;
+      color: #E5E8ED;
+      line-height: 1.45;
+      max-width: 90%;
+      margin: 0 auto 20px auto;
+      padding-left: 12px;
+      border-left: 3px solid var(--qore-orange);
+      text-align: left;
+    }
+
+    /* Box da Problemática Atacada (Do README / TCC) */
+    .problem-box {
+      background: rgba(45, 49, 51, 0.8);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin: 0 auto 22px auto;
+      text-align: left;
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: #D8DADC;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .problem-box strong {
+      color: var(--qore-orange);
+      display: block;
+      margin-bottom: 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Badges Técnicos e Normas */
+    .tech-badges-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .tech-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      background: #2D3133;
+      border: 1px solid #454B4E;
+      color: #E5E8ED;
+    }
+
+    .tech-badge.senai-highlight {
+      border-color: rgba(0, 93, 170, 0.6);
+      background: rgba(0, 93, 170, 0.15);
+      color: #61AFF2;
+    }
+
+    .tech-badge.orange-highlight {
+      border-color: rgba(234, 121, 19, 0.6);
+      background: rgba(234, 121, 19, 0.15);
+      color: var(--qore-orange);
+    }
+
+    .dot-indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--qore-green);
+    }
+
+    /* RODAPÉ: AUTORES, ORIENTADOR E DATA */
+    .footer-section {
+      border-top: 2px solid rgba(234, 121, 19, 0.25);
+      padding-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .author-info {
+      text-align: left;
+    }
+
+    .author-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--qore-orange);
+      font-weight: 700;
+      margin-bottom: 3px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .author-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #FFFFFF;
+      outline: none;
+    }
+
+    .author-sub {
+      font-size: 11px;
+      color: #A0AAB5;
+      margin-top: 2px;
+    }
+
+    .advisor-info {
+      text-align: right;
+    }
+
+    .advisor-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #A0AAB5;
+      font-weight: 700;
+      margin-bottom: 3px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .advisor-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--senai-blue);
+      outline: none;
+    }
+
+    .footer-date {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #A0AAB5;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Efeito de Edição Inline nos Nomes */
+    [contenteditable="true"]:hover {
+      background: rgba(234, 121, 19, 0.15);
+      border-radius: 4px;
+      cursor: text;
+    }
+
+    /* ESTILOS DE IMPRESSÃO (A4 1 PÁGINA EXATA) */
+    @media print {
+      body {
+        background: transparent !important;
+        padding: 0 !important;
+        color: #000000 !important;
+      }
+
+      .toolbar {
+        display: none !important;
+      }
+
+      .a4-page {
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        padding: 20mm 20mm 18mm 20mm !important;
+        box-shadow: none !important;
+        page-break-after: avoid !important;
+        page-break-before: avoid !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .theme-academic {
+        background: #FFFFFF !important;
+        color: #191C1E !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BARRA DE CONTROLE E AÇÕES -->
+  <div class="toolbar">
+    <div class="toolbar-info">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA7913" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <polyline points="10 9 9 9 8 9"></polyline>
+      </svg>
+      <span>Capa Oficial de TCC • <strong>SENAI em Azul Oficial (#005DAA)</strong> & Paleta Figma</span>
+    </div>
+
+    <div class="toolbar-actions">
+      <!-- Alternar Tema: Dark Figma vs Acadêmico Branco -->
+      <button class="btn btn-secondary" onclick="toggleTheme()" id="btnTheme">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <span>Alternar Tema (Dark / Branco)</span>
+      </button>
+
+      <!-- Botão Imprimir / Salvar PDF -->
+      <button class="btn btn-primary" onclick="window.print()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 6 2 18 2 18 9"></polyline>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+          <rect x="6" y="14" width="12" height="8"></rect>
+        </svg>
+        <span>Imprimir / Salvar PDF A4</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- PÁGINA A4 DA CAPA -->
+  <div class="a4-page" id="capaPage">
+    <!-- Grid e Detalhes Decorativos -->
+    <div class="bg-grid"></div>
+    <div class="geometric-accent-1"></div>
+    <div class="geometric-accent-2"></div>
+    <div class="corner-border-tl"></div>
+    <div class="corner-border-br"></div>
+
+    <div class="cover-content">
+      
+      <!-- 1. CABEÇALHO INSTITUCIONAL SENAI -->
+      <header class="header-institution">
+        <div class="senai-logo-container">
+          <!-- Logo Vetorial e Tipográfico SENAI em Azul Oficial -->
+          <svg width="42" height="36" viewBox="0 0 48 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 4L22 4L16 36L0 36L6 4Z" fill="#005DAA"/>
+            <path d="M26 4L42 4L36 36L20 36L26 4Z" fill="#EA7913"/>
+          </svg>
+          <span class="senai-brand-title">SENAI</span>
+        </div>
+        <p class="header-sub">SERVIÇO NACIONAL DE APRENDIZAGEM INDUSTRIAL</p>
+        <p class="header-course" contenteditable="true">CURSO TÉCNICO EM DESENVOLVIMENTO DE SISTEMAS</p>
+      </header>
+
+      <!-- 2. NÚCLEO CENTRAL DO TRABALHO -->
+      <section class="center-section">
+        <!-- Ícone / Selo de Marca Qore Analytics -->
+        <div class="brand-mark">
+          <span class="brand-mark-letter">Q</span>
+        </div>
+
+        <div class="brand-category-tag">
+          TRABALHO DE CONCLUSÃO DE CURSO (TCC) • QA INTELIGENTE
+        </div>
+
+        <h1 class="title-main">
+          QORE <span>ANALYTICS</span>
+        </h1>
+
+        <div class="title-sub" contenteditable="true">
+          Plataforma de Inteligência em Garantia da Qualidade (QA), Análise de Commits e Automação de Testes Corporativos com Inteligência Artificial
+        </div>
+
+        <!-- Problemática do Trabalho -->
+        <div class="problem-box">
+          <strong>Problemática Atacada:</strong>
+          <span contenteditable="true">
+            "Como reduzir o esforço e o tempo dedicados à validação de sistemas corporativos, permitindo que equipes de tecnologia realizem testes de forma mais confiável, padronizada e escalável em diferentes plataformas."
+          </span>
+        </div>
+
+        <!-- Badges de Tecnologias & Conformidades -->
+        <div class="tech-badges-grid">
+          <span class="tech-badge senai-highlight">
+            <span class="dot-indicator"></span>
+            Framework C# .NET 10
+          </span>
+          <span class="tech-badge orange-highlight">
+            Microsoft Playwright (E2E)
+          </span>
+          <span class="tech-badge">
+            Next.js 14 & TypeScript
+          </span>
+          <span class="tech-badge orange-highlight">
+            Quantum AI (RCA & DoD)
+          </span>
+          <span class="tech-badge senai-highlight">
+            Normas ISO/IEC/IEEE 29119 & ISTQB
+          </span>
+          <span class="tech-badge">
+            Matriz RTM & RBAC v3.1
+          </span>
+        </div>
+      </section>
+
+      <!-- 3. RODAPÉ: AUTORIA, ORIENTAÇÃO E CIDADE/ANO -->
+      <footer class="footer-section-wrapper">
+        <div class="footer-section">
+          <div class="author-info">
+            <div class="author-label">Autor / Discente:</div>
+            <div class="author-name" contenteditable="true">Luis Fernando & Equipe de QA</div>
+            <div class="author-sub">Matrícula / Registro Acadêmico SENAI</div>
+          </div>
+
+          <div class="advisor-info">
+            <div class="advisor-label">Orientação Técnica:</div>
+            <div class="advisor-name" contenteditable="true">Banca Examinadora / Prof. Orientador</div>
+            <div class="author-sub">Coordenação de Tecnologia da Informação</div>
+          </div>
+        </div>
+
+        <div class="footer-date" contenteditable="true">
+          SÃO PAULO — SP<br>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--qore-orange);">2026</span>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const page = document.getElementById('capaPage');
+      const isAcademic = page.classList.toggle('theme-academic');
+      const btn = document.getElementById('btnTheme');
+      if (isAcademic) {
+        btn.querySelector('span').innerText = 'Mudar para Tema Dark (Figma)';
+      } else {
+        btn.querySelector('span').innerText = 'Alternar Tema (Dark / Branco)';
+      }
+    }
+  </script>
+
+</body>
+</html>

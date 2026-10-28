@@ -16,7 +16,8 @@ import {
   XCircle,
   ExternalLink,
   Code2,
-  Eye
+  Eye,
+  GraduationCap
 } from 'lucide-react';
 import type { NavigationTab, UserRole } from '../types/qa';
 
@@ -156,6 +157,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           );
         })}
+
+        {/* Link para Capa Oficial de TCC SENAI */}
+        <div className="pt-3 px-1">
+          <a
+            href="/capa.html"
+            target="_blank"
+            rel="noreferrer"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-[#61AFF2] bg-[#005DAA]/15 border border-[#005DAA]/40 hover:bg-[#005DAA]/25 transition-all"
+            title="Abrir Capa Oficial A4 de TCC com Logo SENAI em Azul"
+          >
+            <div className="flex items-center gap-2">
+              <GraduationCap size={16} className="text-[#61AFF2]" />
+              <span>Capa TCC SENAI (A4)</span>
+            </div>
+            <ExternalLink size={12} className="text-[#61AFF2]/70" />
+          </a>
+        </div>
       </div>
 
       {/* System Health Status */}
