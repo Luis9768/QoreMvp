@@ -60,7 +60,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=backend-build /app/backend-out ./backend
 COPY --from=frontend-build /app/frontend/.next/standalone ./frontend
 COPY --from=frontend-build /app/frontend/.next/static ./frontend/.next/static
-COPY --from=frontend-build /app/frontend/public ./frontend/public 2>/dev/null || true
+COPY --from=frontend-build /app/frontend/public ./frontend/public
 
 COPY start.sh ./start.sh
 RUN dos2unix ./start.sh && chmod +x ./start.sh
