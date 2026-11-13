@@ -114,23 +114,36 @@ public class AgentRunner
 
         try
         {
-            await Log($"Iniciando Chromium (headless={req.Headless})...");
+            var isContainer = !OperatingSystem.IsWindows() || string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase);
+            var effectiveHeadless = isContainer ? true : req.Headless;
+
+            await Log($"Iniciando Chromium (headless={effectiveHeadless}, container={isContainer})...");
             pw = await Playwright.CreateAsync();
             var launch = new BrowserTypeLaunchOptions
             {
-                Headless = req.Headless,
+                Headless = effectiveHeadless,
                 SlowMo = 70, // 70ms garante composição fluida de frames no vídeo WebM sem degradar performance
                 Args = new[]
                 {
                     "--no-sandbox",
                     "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
                     "--ignore-certificate-errors",
                     "--disable-features=NetworkServiceSandbox",
                     "--disable-web-security"
                 }
             };
-            var chrome = _config["Playwright:ChromePath"] ?? @"C:\Program Files\Google\Chrome\Application\chrome.exe";
-            if (File.Exists(chrome)) launch.ExecutablePath = chrome;
+            var candidates = new[]
+            {
+                Environment.GetEnvironmentVariable("PLAYWRIGHT_CHROME_PATH"),
+                _config["Playwright:ChromePath"],
+                @"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                "/usr/bin/chromium",
+                "/usr/bin/chromium-browser",
+                "/usr/bin/google-chrome"
+            };
+            var chrome = candidates.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p));
+            if (!string.IsNullOrWhiteSpace(chrome)) launch.ExecutablePath = chrome;
             browser = await pw.Chromium.LaunchAsync(launch);
 
             ctx = await browser.NewContextAsync(new BrowserNewContextOptions
@@ -138,7 +151,12 @@ public class AgentRunner
                 RecordVideoDir = evidenceDir,
                 RecordVideoSize = new RecordVideoSize { Width = 1280, Height = 720 },
                 ViewportSize = new ViewportSize { Width = 1280, Height = 720 },
-                IgnoreHTTPSErrors = true
+                IgnoreHTTPSErrors = true,
+                ExtraHTTPHeaders = new Dictionary<string, string>
+                {
+                    ["Bypass-Tunnel-Reminder"] = "true",
+                    ["ngrok-skip-browser-warning"] = "true"
+                }
             });
             await ctx.AddInitScriptAsync(VisualHudAndRippleJs);
             page = await ctx.NewPageAsync();

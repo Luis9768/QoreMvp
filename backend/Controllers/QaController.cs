@@ -228,14 +228,323 @@ public class QaController : ControllerBase
         });
     }
 
-    // Lista de usuários padrão do sistema (Mock persistente em memória para RBAC e Multi-tenant)
+    // Lista de usuários padrão do sistema (RBAC: 1 único perfil obrigatório por usuário -> 1=Dev, 2=QA, 3=Admin)
     private static readonly List<UserAccount> DefaultUsers = new()
     {
-        new UserAccount { Id = 1, Name = "Luis Santos", Email = "luis.qa@qoreanalytics.com", Role = "QA", CompanyName = "AfroKings Tech", CreatedAt = DateTime.UtcNow.AddDays(-30) },
-        new UserAccount { Id = 2, Name = "Carlos Silva (Dev)", Email = "carlos.dev@afrokings.com", Role = "Dev", CompanyName = "AfroKings Tech", CreatedAt = DateTime.UtcNow.AddDays(-20) },
-        new UserAccount { Id = 3, Name = "Mariana Costa (Admin)", Email = "mariana.admin@qoreanalytics.com", Role = "Admin", CompanyName = "Qore Analytics Global", CreatedAt = DateTime.UtcNow.AddDays(-60) },
-        new UserAccount { Id = 4, Name = "Lucas Barber (Dev)", Email = "lucas.dev@studiobarber.com", Role = "Dev", CompanyName = "Studio Barber Ltda", CreatedAt = DateTime.UtcNow.AddDays(-10) }
+        new UserAccount { Id = 1, Name = "Luis Santos", Email = "luis.qa@qoreanalytics.com", Role = "QA", PerfilId = 2, CompanyName = "AfroKings Tech", CreatedAt = DateTime.UtcNow.AddDays(-30) },
+        new UserAccount { Id = 2, Name = "Carlos Silva", Email = "carlos.dev@afrokings.com", Role = "Dev", PerfilId = 1, CompanyName = "AfroKings Tech", CreatedAt = DateTime.UtcNow.AddDays(-20) },
+        new UserAccount { Id = 3, Name = "Mariana Costa", Email = "mariana.admin@qoreanalytics.com", Role = "Admin", PerfilId = 3, CompanyName = "Qore Analytics Global", CreatedAt = DateTime.UtcNow.AddDays(-60) },
+        new UserAccount { Id = 4, Name = "Lucas Barber", Email = "lucas.dev@studiobarber.com", Role = "Dev", PerfilId = 1, CompanyName = "Studio Barber Ltda", CreatedAt = DateTime.UtcNow.AddDays(-10) }
     };
+
+    // Lista de projetos cadastrados (DDD: cada projeto é obrigatoriamente vinculado a 1 ou mais usuários)
+    private static readonly List<Project> DefaultProjects = new()
+    {
+        new Project
+        {
+            Id = 1,
+            Name = "AfroKings BarberShop (Cloud)",
+            TargetUrl = "https://tcc-senai-front-2.vercel.app/",
+            SwaggerUrl = "https://afrokings.azurewebsites.net/swagger/v1/swagger.json",
+            GithubUrl = "https://github.com/LuisSantos09/TCC_Senai_Front",
+            EnvironmentType = "Cloud / Produção",
+            UserIds = new List<int> { 1, 2, 3 },
+            CreatedAt = DateTime.UtcNow.AddDays(-25)
+        },
+        new Project
+        {
+            Id = 2,
+            Name = "Qore Analytics API & Portal (Homologação)",
+            TargetUrl = "https://tcc-senai-front-2.vercel.app/login",
+            SwaggerUrl = "https://afrokings.azurewebsites.net/swagger/v1/swagger.json",
+            GithubUrl = "https://github.com/LuisSantos09/TCC_Senai_Back",
+            EnvironmentType = "Homologação",
+            UserIds = new List<int> { 1, 3 },
+            CreatedAt = DateTime.UtcNow.AddDays(-12)
+        },
+        new Project
+        {
+            Id = 3,
+            Name = "Meu Projeto Local via Túnel (Shift-Left)",
+            TargetUrl = "https://meu-app-teste.loca.lt",
+            SwaggerUrl = "",
+            GithubUrl = "https://github.com/LuisSantos09/TCC_Senai_Front",
+            EnvironmentType = "Túnel Local (Shift-Left)",
+            UserIds = new List<int> { 1, 2, 4 },
+            CreatedAt = DateTime.UtcNow.AddDays(-2)
+        }
+    };
+
+    private static object EnrichProject(Project p)
+    {
+        var linkedUsers = DefaultUsers
+            .Where(u => p.UserIds.Contains(u.Id))
+            .Select(u => new
+            {
+                u.Id,
+                u.Name,
+                u.Email,
+                u.Role,
+                u.PerfilId,
+                u.CompanyName
+            })
+            .ToList();
+
+        return new
+        {
+            p.Id,
+            p.Name,
+            p.TargetUrl,
+            p.SwaggerUrl,
+            p.GithubUrl,
+            p.EnvironmentType,
+            p.UserIds,
+            Users = linkedUsers,
+            TotalUsers = linkedUsers.Count,
+            p.CreatedAt
+        };
+    }
+
+    private static string? ValidateProjectDto(CreateProjectRequestDto dto, int? ignoreId = null)
+    {
+        if (dto == null)
+            return "Os dados do projeto não podem ser nulos.";
+
+        var nome = dto.Name?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(nome))
+            return "O nome do projeto é obrigatório.";
+        if (nome.Length < 2 || nome.Length > 150)
+            return "O nome do projeto deve ter entre 2 e 150 caracteres.";
+
+        if (DefaultProjects.Any(p => p.Id != ignoreId && string.Equals(p.Name.Trim(), nome, StringComparison.OrdinalIgnoreCase)))
+            return $"Já existe um projeto cadastrado com o nome '{nome}'.";
+
+        var urlAlvo = dto.TargetUrl?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(urlAlvo))
+            return "A URL Alvo (TargetUrl) do projeto é obrigatória.";
+        if (!Uri.TryCreate(urlAlvo, UriKind.Absolute, out var targetUri) ||
+            (targetUri.Scheme != Uri.UriSchemeHttp && targetUri.Scheme != Uri.UriSchemeHttps))
+            return "A URL Alvo informada é inválida. Informe uma URL iniciando com http:// ou https://.";
+
+        if (!string.IsNullOrWhiteSpace(dto.SwaggerUrl))
+        {
+            var swagger = dto.SwaggerUrl.Trim();
+            if (!Uri.TryCreate(swagger, UriKind.Absolute, out var swaggerUri) ||
+                (swaggerUri.Scheme != Uri.UriSchemeHttp && swaggerUri.Scheme != Uri.UriSchemeHttps))
+                return "A URL do Swagger informada é inválida. Informe uma URL iniciando com http:// ou https://.";
+        }
+
+        var distinctUsers = dto.UserIds?.Where(id => id > 0).Distinct().ToList() ?? new List<int>();
+        if (distinctUsers.Count == 0)
+            return "Regra de Domínio: Um projeto deve estar obrigatoriamente vinculado a pelo menos 1 usuário.";
+
+        var existingIds = DefaultUsers.Select(u => u.Id).ToHashSet();
+        var missingIds = distinctUsers.Where(id => !existingIds.Contains(id)).ToList();
+        if (missingIds.Count > 0)
+            return $"Os seguintes IDs de usuários não existem: {string.Join(", ", missingIds)}.";
+
+        return null;
+    }
+
+    private static string DetectEnvironmentType(string url)
+    {
+        var lower = (url ?? string.Empty).ToLowerInvariant();
+        if (lower.Contains(".loca.lt") || lower.Contains("ngrok") || lower.Contains("trycloudflare.com") || lower.Contains("bore.pub") || lower.Contains("serveo.net"))
+            return "Túnel Local (Shift-Left)";
+        if (lower.Contains("localhost") || lower.Contains("127.0.0.1") || lower.Contains("host.docker.internal"))
+            return "Localhost / Máquina Local";
+        return "Cloud / Produção";
+    }
+
+    [HttpGet("projects")]
+    public IActionResult GetProjects()
+    {
+        var result = DefaultProjects
+            .OrderByDescending(p => p.Id)
+            .Select(EnrichProject)
+            .ToList();
+        return Ok(result);
+    }
+
+    [HttpGet("projects/{id}")]
+    public IActionResult GetProjectById(int id)
+    {
+        var proj = DefaultProjects.FirstOrDefault(p => p.Id == id);
+        if (proj == null)
+            return NotFound(new { error = $"Projeto com ID {id} não encontrado." });
+        return Ok(EnrichProject(proj));
+    }
+
+    [HttpPost("projects")]
+    public IActionResult CreateProject([FromBody] CreateProjectRequestDto dto)
+    {
+        var validationError = ValidateProjectDto(dto);
+        if (validationError != null)
+            return BadRequest(new { error = validationError });
+
+        var newProject = new Project
+        {
+            Id = DefaultProjects.Count == 0 ? 1 : DefaultProjects.Max(p => p.Id) + 1,
+            Name = dto.Name.Trim(),
+            TargetUrl = dto.TargetUrl.Trim(),
+            SwaggerUrl = string.IsNullOrWhiteSpace(dto.SwaggerUrl) ? null : dto.SwaggerUrl.Trim(),
+            GithubUrl = string.IsNullOrWhiteSpace(dto.GithubUrl) ? null : dto.GithubUrl.Trim(),
+            EnvironmentType = !string.IsNullOrWhiteSpace(dto.EnvironmentType) ? dto.EnvironmentType.Trim() : DetectEnvironmentType(dto.TargetUrl),
+            UserIds = dto.UserIds.Where(id => id > 0).Distinct().ToList(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        DefaultProjects.Add(newProject);
+        return Created($"/api/qa/projects/{newProject.Id}", EnrichProject(newProject));
+    }
+
+    [HttpPut("projects/{id}")]
+    public IActionResult UpdateProject(int id, [FromBody] CreateProjectRequestDto dto)
+    {
+        var existing = DefaultProjects.FirstOrDefault(p => p.Id == id);
+        if (existing == null)
+            return NotFound(new { error = $"Projeto com ID {id} não encontrado." });
+
+        var validationError = ValidateProjectDto(dto, ignoreId: id);
+        if (validationError != null)
+            return BadRequest(new { error = validationError });
+
+        existing.Name = dto.Name.Trim();
+        existing.TargetUrl = dto.TargetUrl.Trim();
+        existing.SwaggerUrl = string.IsNullOrWhiteSpace(dto.SwaggerUrl) ? null : dto.SwaggerUrl.Trim();
+        existing.GithubUrl = string.IsNullOrWhiteSpace(dto.GithubUrl) ? null : dto.GithubUrl.Trim();
+        existing.EnvironmentType = !string.IsNullOrWhiteSpace(dto.EnvironmentType) ? dto.EnvironmentType.Trim() : DetectEnvironmentType(dto.TargetUrl);
+        existing.UserIds = dto.UserIds.Where(uId => uId > 0).Distinct().ToList();
+
+        return Ok(EnrichProject(existing));
+    }
+
+    [HttpDelete("projects/{id}")]
+    public IActionResult DeleteProject(int id)
+    {
+        var existing = DefaultProjects.FirstOrDefault(p => p.Id == id);
+        if (existing == null)
+            return NotFound(new { error = $"Projeto com ID {id} não encontrado." });
+
+        DefaultProjects.Remove(existing);
+        return NoContent();
+    }
+
+    [HttpGet("check-target")]
+    public async Task<IActionResult> CheckTargetConnectivity([FromQuery] string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return BadRequest(new { error = "Informe uma URL para testar a conectividade." });
+
+        var cleanUrl = url.Trim();
+        if (!Uri.TryCreate(cleanUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return BadRequest(new { error = "URL inválida. Certifique-se de incluir http:// ou https://." });
+        }
+
+        var lower = cleanUrl.ToLowerInvariant();
+        var isContainer = string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase);
+
+        string detectedType = "Cloud / Produção";
+        bool isTunnel = false;
+
+        if (lower.Contains(".loca.lt"))
+        {
+            detectedType = "LocalTunnel (.loca.lt)";
+            isTunnel = true;
+        }
+        else if (lower.Contains("ngrok"))
+        {
+            detectedType = "Ngrok Tunnel (.ngrok)";
+            isTunnel = true;
+        }
+        else if (lower.Contains("trycloudflare.com"))
+        {
+            detectedType = "Cloudflare Quick Tunnel";
+            isTunnel = true;
+        }
+        else if (lower.Contains("host.docker.internal"))
+        {
+            detectedType = "Docker Host Bridge";
+        }
+        else if (lower.Contains("localhost") || lower.Contains("127.0.0.1"))
+        {
+            detectedType = "Localhost (Máquina Local)";
+        }
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            using var handler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+            };
+            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) QoreAnalyticsProbe/2.0");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Bypass-Tunnel-Reminder", "true");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("ngrok-skip-browser-warning", "true");
+
+            using var resp = await client.GetAsync(cleanUrl);
+            sw.Stop();
+
+            var statusCode = (int)resp.StatusCode;
+            var reachable = statusCode >= 200 && statusCode < 500;
+
+            return Ok(new TargetConnectivityResultDto
+            {
+                Reachable = reachable,
+                StatusCode = statusCode,
+                LatencyMs = sw.ElapsedMilliseconds,
+                Url = cleanUrl,
+                DetectedType = detectedType,
+                IsTunnel = isTunnel,
+                RunningInContainer = isContainer,
+                Message = reachable
+                    ? $"Conexão estabelecida com sucesso ({statusCode} {resp.ReasonPhrase}) em {sw.ElapsedMilliseconds}ms!"
+                    : $"Servidor respondeu com status {statusCode} ({resp.ReasonPhrase}).",
+                Recommendation = isTunnel
+                    ? "Headers anti-bloqueio de túnel (Bypass-Tunnel-Reminder / ngrok-skip-browser-warning) ativos automaticamente no motor Playwright!"
+                    : null
+            });
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            var isLocalhost = lower.Contains("localhost") || lower.Contains("127.0.0.1");
+            string recommendation;
+
+            if (isLocalhost && isContainer)
+            {
+                recommendation = "O Qore Analytics está rodando dentro de um Container/Easypanel. Para acessar um projeto na sua máquina local, gere um Túnel Reverso com 'npx localtunnel --port SUA_PORTA' e use a URL https://...loca.lt.";
+            }
+            else if (isLocalhost)
+            {
+                recommendation = "Verifique se o seu projeto local está rodando na porta informada ou use um túnel reverso caso o Qore esteja hospedado no Easypanel.";
+            }
+            else if (isTunnel)
+            {
+                recommendation = "O túnel parece offline ou fechado. Confira se o comando (npx localtunnel / ngrok / cloudflared) continua aberto no seu terminal.";
+            }
+            else
+            {
+                recommendation = "Verifique se a URL está correta e acessível publicamente.";
+            }
+
+            return Ok(new TargetConnectivityResultDto
+            {
+                Reachable = false,
+                StatusCode = 0,
+                LatencyMs = sw.ElapsedMilliseconds,
+                Url = cleanUrl,
+                DetectedType = detectedType,
+                IsTunnel = isTunnel,
+                RunningInContainer = isContainer,
+                Message = $"Não foi possível alcançar {cleanUrl}: {ex.Message.Split('\n')[0]}",
+                Recommendation = recommendation
+            });
+        }
+    }
 
     [HttpGet("users")]
     public IActionResult GetUsers()
@@ -249,9 +558,33 @@ public class QaController : ControllerBase
         if (string.IsNullOrWhiteSpace(newUser.Name) || string.IsNullOrWhiteSpace(newUser.Email))
             return BadRequest(new { error = "Nome e e-mail são obrigatórios." });
 
-        newUser.Id = DefaultUsers.Count + 1;
+        if (DefaultUsers.Any(u => string.Equals(u.Email.Trim(), newUser.Email.Trim(), StringComparison.OrdinalIgnoreCase)))
+            return BadRequest(new { error = "Já existe um usuário cadastrado com este e-mail." });
+
+        newUser.Id = DefaultUsers.Count == 0 ? 1 : DefaultUsers.Max(u => u.Id) + 1;
         newUser.CreatedAt = DateTime.UtcNow;
-        if (string.IsNullOrWhiteSpace(newUser.Role)) newUser.Role = "Dev";
+
+        // Sincroniza Perfil Único (1=Dev, 2=QA, 3=Admin)
+        if (newUser.PerfilId is >= 1 and <= 3)
+        {
+            newUser.Role = newUser.PerfilId switch
+            {
+                2 => "QA",
+                3 => "Admin",
+                _ => "Dev"
+            };
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(newUser.Role)) newUser.Role = "Dev";
+            newUser.PerfilId = newUser.Role.ToUpperInvariant() switch
+            {
+                "QA" => 2,
+                "ADMIN" => 3,
+                _ => 1
+            };
+        }
+
         if (string.IsNullOrWhiteSpace(newUser.CompanyName)) newUser.CompanyName = "AfroKings Tech";
 
         DefaultUsers.Add(newUser);
@@ -291,6 +624,8 @@ public class QaController : ControllerBase
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("Bypass-Tunnel-Reminder", "true");
+            client.DefaultRequestHeaders.TryAddWithoutValidation("ngrok-skip-browser-warning", "true");
             var html = await client.GetStringAsync(url);
             var clean = html.Length > 25000 ? html[..25000] + "\n<!-- HTML truncado para pré-visualização rápida -->" : html;
             return Ok(new { url, html = clean, length = html.Length });

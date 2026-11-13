@@ -51,14 +51,15 @@ else
         options.UseSqlite(sqliteConnStr));
 }
 
-// 4. Configuração de CORS para o Next.js
+// 4. Configuração de CORS para o Next.js e Deploy no Easypanel
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowNextJs", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000")
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 

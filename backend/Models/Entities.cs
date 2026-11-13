@@ -11,7 +11,33 @@ public class Project
     [Required]
     public string TargetUrl { get; set; } = string.Empty;
     public string? SwaggerUrl { get; set; }
+    public string? GithubUrl { get; set; }
+    public string EnvironmentType { get; set; } = "Cloud / Produção"; // "Cloud / Produção", "Homologação", "Túnel Local (Shift-Left)", "Localhost"
+    public List<int> UserIds { get; set; } = new();
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class CreateProjectRequestDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string TargetUrl { get; set; } = string.Empty;
+    public string? SwaggerUrl { get; set; }
+    public string? GithubUrl { get; set; }
+    public string? EnvironmentType { get; set; }
+    public List<int> UserIds { get; set; } = new();
+}
+
+public class TargetConnectivityResultDto
+{
+    public bool Reachable { get; set; }
+    public int StatusCode { get; set; }
+    public long LatencyMs { get; set; }
+    public string Url { get; set; } = string.Empty;
+    public string DetectedType { get; set; } = string.Empty; // "LocalTunnel", "Ngrok", "Cloudflare Tunnel", "Localhost", "Cloud / Web"
+    public bool IsTunnel { get; set; }
+    public bool RunningInContainer { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public string? Recommendation { get; set; }
 }
 
 public class TestPlan
@@ -189,6 +215,7 @@ public class UserAccount
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public short PerfilId { get; set; } = 1; // 1 = DEV, 2 = QA, 3 = ADMIN (Relacionamento 1:N estrito)
     public string Role { get; set; } = "QA"; // "Dev", "QA", "Admin"
     public string CompanyName { get; set; } = "AfroKings Tech";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -230,4 +257,3 @@ public class TestAuthProfileDto
     public string Environment { get; set; } = "Homologação";
     public string Description { get; set; } = string.Empty;
 }
-
