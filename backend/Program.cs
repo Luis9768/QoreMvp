@@ -20,8 +20,41 @@ builder.Services.AddScoped<IGeminiPlannerService, GeminiPlannerService>();
 builder.Services.AddSingleton<AgentRunner>();
 
 // 3. Configuração do Banco de Dados (PostgreSQL no Docker com fallback inteligente)
-var pgConnStr = builder.Configuration.GetConnectionString("PostgresConnection") 
+var pgConnStrRaw = builder.Configuration.GetConnectionString("PostgresConnection") 
+    ?? builder.Configuration["DATABASE_URL"]
     ?? "Host=localhost;Port=5432;Database=qaplatform_db;Username=postgres;Password=postgres";
+
+// Suporte automático para URLs no formato URI do Easypanel (postgres://user:pass@host:port/db)
+string pgConnStr;
+if (pgConnStrRaw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
+    pgConnStrRaw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+{
+    try
+    {
+        var uri = new Uri(pgConnStrRaw);
+        var userInfo = uri.UserInfo.Split(':');
+        var user = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "postgres";
+        var pass = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+        var db = uri.AbsolutePath.TrimStart('/');
+        var port = uri.Port > 0 ? uri.Port : 5432;
+        var host = uri.Host;
+
+        pgConnStr = $"Host={host};Port={port};Database={db};Username={user};Password={pass};";
+        if (pgConnStrRaw.Contains("sslmode=disable", StringComparison.OrdinalIgnoreCase))
+        {
+            pgConnStr += "SSL Mode=Disable;";
+        }
+    }
+    catch
+    {
+        pgConnStr = pgConnStrRaw;
+    }
+}
+else
+{
+    pgConnStr = pgConnStrRaw;
+}
+
 var sqliteConnStr = builder.Configuration.GetConnectionString("SqliteFallback") 
     ?? "Data Source=qaplatform_local.db";
 
