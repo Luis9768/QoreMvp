@@ -12,6 +12,7 @@ builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, relo
 // 1. Serviços Web e Controllers
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddHealthChecks();
 
 // 2. Serviços da Plataforma QA e IA
 builder.Services.AddHttpClient<GeminiClient>(c => c.Timeout = TimeSpan.FromSeconds(90));
@@ -162,6 +163,8 @@ app.Use(async (ctx, next) =>
 app.UseStaticFiles();
 
 app.UseAuthorization();
+app.MapHealthChecks("/");
+app.MapHealthChecks("/health");
 app.MapControllers();
 
 Console.WriteLine("==================================================================");
