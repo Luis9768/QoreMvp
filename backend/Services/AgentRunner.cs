@@ -19,15 +19,22 @@ public class AgentRunner
     private readonly IConfiguration _config;
     private readonly ILogger<AgentRunner> _logger;
     private readonly IWebHostEnvironment _env;
+    private readonly PlaywrightBootstrapService _bootstrap;
 
-    private const int MaxRoundsPerStep = 4;
+    private const int MaxRoundsPerStep = 6;
 
-    public AgentRunner(IServiceScopeFactory scopeFactory, IConfiguration config, ILogger<AgentRunner> logger, IWebHostEnvironment env)
+    public AgentRunner(
+        IServiceScopeFactory scopeFactory,
+        IConfiguration config,
+        ILogger<AgentRunner> logger,
+        IWebHostEnvironment env,
+        PlaywrightBootstrapService bootstrap)
     {
         _scopeFactory = scopeFactory;
         _config = config;
         _logger = logger;
         _env = env;
+        _bootstrap = bootstrap;
     }
 
     public async Task<int> StartAsync(ExecuteRequestDto req)
@@ -117,12 +124,24 @@ public class AgentRunner
             var isContainer = !OperatingSystem.IsWindows() || string.Equals(Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase);
             var effectiveHeadless = isContainer ? true : req.Headless;
 
-            await Log($"Iniciando Chromium (headless={effectiveHeadless}, container={isContainer})...");
+            if (!OperatingSystem.IsWindows())
+            {
+                Environment.SetEnvironmentVariable("PLAYWRIGHT_BROWSERS_PATH", _bootstrap.GetBrowsersCachePath());
+            }
+            Environment.SetEnvironmentVariable("PLAYWRIGHT_DRIVER_SEARCH_PATH", AppContext.BaseDirectory);
+
+            await Log($"Preparando motor Playwright real (Chromium Headless + Gravador Vídeo WebM, headless={effectiveHeadless}, container={isContainer})...");
+            var bootstrapReady = await _bootstrap.EnsureReadyAsync(Log);
+            if (!bootstrapReady)
+            {
+                throw new InvalidOperationException(_bootstrap.LastError ?? "Chromium Headless e FFmpeg não puderam ser instalados no servidor.");
+            }
+
             pw = await Playwright.CreateAsync();
             var launch = new BrowserTypeLaunchOptions
             {
                 Headless = effectiveHeadless,
-                SlowMo = 70, // 70ms garante composição fluida de frames no vídeo WebM sem degradar performance
+                SlowMo = 85, // 85ms garante composição nítida de frames no vídeo WebM sem degradar performance
                 Args = new[]
                 {
                     "--no-sandbox",
@@ -133,28 +152,26 @@ public class AgentRunner
                     "--disable-web-security"
                 }
             };
-            var candidates = new[]
-            {
-                Environment.GetEnvironmentVariable("PLAYWRIGHT_CHROME_PATH"),
-                _config["Playwright:ChromePath"],
-                @"C:\Program Files\Google\Chrome\Application\chrome.exe",
-                "/usr/bin/chromium",
-                "/usr/bin/chromium-browser",
-                "/usr/bin/google-chrome"
-            };
-            var chrome = candidates.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p));
-            if (!string.IsNullOrWhiteSpace(chrome)) launch.ExecutablePath = chrome;
 
-            try
+            // Em Linux Headless usa o chromium-headless-shell gerenciado pelo Playwright (ExecutablePath=null);
+            // no Windows em modo visível ou se necessário usa o Chrome local caso não haja headless-shell.
+            if (!effectiveHeadless || string.IsNullOrWhiteSpace(_bootstrap.FindBrowserExecutable()))
             {
-                browser = await pw.Chromium.LaunchAsync(launch);
+                var fallbackCandidates = new[]
+                {
+                    Environment.GetEnvironmentVariable("PLAYWRIGHT_CHROME_PATH"),
+                    _config["Playwright:ChromePath"],
+                    @"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                    "/usr/bin/chromium",
+                    "/usr/bin/chromium-browser",
+                    "/usr/bin/google-chrome"
+                };
+                var chrome = fallbackCandidates.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p));
+                if (!string.IsNullOrWhiteSpace(chrome)) launch.ExecutablePath = chrome;
             }
-            catch (Exception launchEx)
-            {
-                await Log($"⚡ Container Cloud Enxuto detectado ({launchEx.Message.Split('\n')[0]}). Ativando Motor HTTP/DOM Quantum Cloud...");
-                await RunCloudHttpDomEngineAsync(id, req, exec, evidenceDir, Log);
-                return;
-            }
+
+            await Log("Abrindo navegador real Chromium com gravação de vídeo ativa (1280x720)...");
+            browser = await pw.Chromium.LaunchAsync(launch);
 
             ctx = await browser.NewContextAsync(new BrowserNewContextOptions
             {
@@ -175,19 +192,38 @@ public class AgentRunner
             var activePage = page;
             ctx.Page += (_, p) => { activePage = p; };
 
-            await Log($"Abrindo {req.TargetUrl}");
+            await Log($"Navegando até a URL alvo: {req.TargetUrl}");
             try
             {
-                await page.GotoAsync(req.TargetUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+                await page.GotoAsync(req.TargetUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 35000 });
             }
             catch (Exception ex)
             {
                 await Log($"   Reconectando a {req.TargetUrl} ({ex.Message.Split('\n')[0]})...");
                 await Task.Delay(1500);
-                await page.GotoAsync(req.TargetUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 30000 });
+                await page.GotoAsync(req.TargetUrl, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 35000 });
             }
 
+            // Aguarda hidratação de SPAs (React/Next.js) para não tirar snapshot de tela vazia
+            try { await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions { Timeout = 5000 }); } catch { }
+            await page.WaitForTimeoutAsync(700);
             await EnsureVisualEngineAsync(page);
+
+            // Captura imediatamente o print inicial real do sistema aberto + frame ao vivo
+            try
+            {
+                await page.EvaluateAsync("([t, s, st]) => window.__qa_set_hud && window.__qa_set_hud(t, s, st)",
+                    new object[] { "Qore Bot Conectado", $"URL aberta: {Trunc(page.Url, 60)}", "action" });
+                var initShotPath = Path.Combine(evidenceDir, "passo_0_inicio.png");
+                await page.ScreenshotAsync(new PageScreenshotOptions { Path = initShotPath });
+                exec.InitialScreenshotUrl = $"/evidencias/{id}/passo_0_inicio.png";
+                await CaptureLiveFrameAsync(page, evidenceDir);
+                await Log($"📸 Print inicial da página real capturado: {exec.InitialScreenshotUrl}");
+            }
+            catch (Exception initEx)
+            {
+                await Log($"   ⚠ Aviso ao capturar print inicial: {initEx.Message}");
+            }
 
             await Log($"Dados de teste gerados: e-mail {data.Email} | CPF {data.Cpf}");
 
@@ -195,15 +231,16 @@ public class AgentRunner
 
             foreach (var step in exec.Steps.OrderBy(s => s.StepNumber))
             {
-                // Verifica se a página ainda está aberta e viva
-                if (page.IsClosed)
+                var currentPage = (activePage != null && !activePage.IsClosed) ? activePage : page;
+                if (currentPage.IsClosed)
                 {
                     step.Status = "Skipped";
                     step.ErrorDetails = "Navegador foi fechado";
+                    await db.SaveChangesAsync();
                     continue;
                 }
 
-                await EnsureVisualEngineAsync(page);
+                await EnsureVisualEngineAsync(currentPage);
 
                 var codeTag = string.IsNullOrWhiteSpace(step.Codigo) ? $"TC-{step.StepNumber:D2}" : step.Codigo;
                 step.Status = "Running";
@@ -211,34 +248,39 @@ public class AgentRunner
                 if (!string.IsNullOrWhiteSpace(step.PreCondicao)) await Log($"   📌 Pré-condição: {step.PreCondicao}");
                 if (!string.IsNullOrWhiteSpace(step.DadosTeste)) await Log($"   📋 Dados de Teste: {step.DadosTeste}");
                 if (!string.IsNullOrWhiteSpace(step.ResultadoEsperado)) await Log($"   🎯 Critério de Aceite: {step.ResultadoEsperado}");
-                
+
                 try
                 {
-                    await page.EvaluateAsync("([t, s, st]) => window.__qa_set_hud && window.__qa_set_hud(t, s, st)",
-                        new object[] { $"{codeTag}: {step.StepTitle}", "IA analisando a tela e planejando...", "thinking" });
+                    await currentPage.EvaluateAsync("([t, s, st]) => window.__qa_set_hud && window.__qa_set_hud(t, s, st)",
+                        new object[] { $"{codeTag}: {step.StepTitle}", "IA analisando a tela real e planejando...", "thinking" });
+                    await CaptureLiveFrameAsync(currentPage, evidenceDir);
                 }
                 catch { }
 
                 var sw = Stopwatch.StartNew();
-                var (ok, reason, actions, decision) = await RunStepAsync(page, step, exec, data, history, gemini, Log);
+                var (ok, reason, actions, decision, visitedUrl, traceSummary) = await RunStepAsync(
+                    () => (activePage != null && !activePage.IsClosed) ? activePage : page,
+                    step, exec, data, history, gemini, evidenceDir, Log);
                 sw.Stop();
+
+                currentPage = (activePage != null && !activePage.IsClosed) ? activePage : page;
+
+                try
+                {
+                    await currentPage.EvaluateAsync("([t, s, st]) => window.__qa_set_hud && window.__qa_set_hud(t, s, st)",
+                        new object[] { ok ? $"✔ {codeTag} Aprovado" : $"✖ {codeTag} Falhou", reason, ok ? "success" : "action" });
+                }
+                catch { }
 
                 if (ok)
                 {
-                    try
-                    {
-                        await page.EvaluateAsync("([t, s, st]) => window.__qa_set_hud && window.__qa_set_hud(t, s, st)",
-                            new object[] { $"✔ {codeTag} Aprovado", reason, "success" });
-                    }
-                    catch { }
-
                     // Se a IA indicou o elemento que comprova o assert, rola até ele e destaca em verde neon
                     if (decision?.ElementoValidado.HasValue == true)
                     {
                         var idx = decision.ElementoValidado.Value;
                         try
                         {
-                            var loc = page.Locator($"[data-qa-idx=\"{idx}\"]").First;
+                            var loc = currentPage.Locator($"[data-qa-idx=\"{idx}\"]").First;
                             if (await loc.CountAsync() > 0)
                             {
                                 await loc.ScrollIntoViewIfNeededAsync(new() { Timeout = 2000 });
@@ -247,7 +289,7 @@ public class AgentRunner
                                 {
                                     var cx = box.X + box.Width / 2;
                                     var cy = box.Y + box.Height / 2;
-                                    await page.EvaluateAsync("([x, y, idx, label]) => { " +
+                                    await currentPage.EvaluateAsync("([x, y, idx, label]) => { " +
                                         "window.__qa_move_cursor && window.__qa_move_cursor(x, y, label); " +
                                         "const el = document.querySelector(`[data-qa-idx=\"${idx}\"]`); " +
                                         "if (el) window.__qa_highlight && window.__qa_highlight(el, 'success'); " +
@@ -260,13 +302,10 @@ public class AgentRunner
                     }
                     else if (actions == 0)
                     {
-                        // Validação pura sem ações de clique/digitação: localiza no texto o critério esperado ou o texto citado pela IA e destaca
                         try
                         {
-                            await page.EvaluateAsync(@"([crit, reason]) => {
+                            await currentPage.EvaluateAsync(@"([crit, reason]) => {
                                 const elements = Array.from(document.querySelectorAll('address, [class*=""address""], [class*=""location""], footer, p, h1, h2, h3, h4, h5, span, a, div, [class*=""badge""]'));
-                                
-                                // 1. Tenta extrair texto entre aspas ou parênteses do motivo fornecido pela IA (ex: 'R. Gertrudes de Lima' ou (R. Gertrudes...))
                                 const match = (reason || '').match(/['""\(]([^'""\(\)]{4,80})['""\)]/);
                                 const targetQuote = match ? match[1].trim().toLowerCase() : '';
                                 if (targetQuote) {
@@ -281,8 +320,6 @@ public class AgentRunner
                                         }
                                     }
                                 }
-
-                                // 2. Tenta encontrar por palavras-chave relevantes do critério de aceite
                                 const words = (crit || '').toLowerCase().replace(/[^a-z0-9áéíóúãõâêîôûç\s]/gi, ' ').split(/\s+/).filter(w => w.length >= 4);
                                 for (const el of elements) {
                                     const t = (el.innerText || '').trim().toLowerCase();
@@ -304,6 +341,10 @@ public class AgentRunner
                         await Task.Delay(350);
                     }
                 }
+                else
+                {
+                    await Task.Delay(350);
+                }
 
                 var shotName = $"passo_{step.StepNumber}.png";
                 var targetShotPage = (activePage != null && !activePage.IsClosed) ? activePage : page;
@@ -316,17 +357,21 @@ public class AgentRunner
                         await targetShotPage.WaitForTimeoutAsync(500);
                     }
 
-                    await targetShotPage.ScreenshotAsync(new PageScreenshotOptions { Path = Path.Combine(evidenceDir, shotName) });
-                    step.ScreenshotFileName = shotName;
-                    step.ScreenshotUrl = $"/evidencias/{id}/{shotName}";
+                    var shotFullPath = Path.Combine(evidenceDir, shotName);
+                    await targetShotPage.ScreenshotAsync(new PageScreenshotOptions { Path = shotFullPath });
+                    if (File.Exists(shotFullPath) && new FileInfo(shotFullPath).Length > 0)
+                    {
+                        step.ScreenshotFileName = shotName;
+                        step.ScreenshotUrl = $"/evidencias/{id}/{shotName}";
+                    }
+                    await CaptureLiveFrameAsync(targetShotPage, evidenceDir);
                 }
                 catch (Exception ex)
                 {
-                    await Log($"   Não foi possível tirar o print: {ex.Message}");
+                    await Log($"   ✖ Não foi possível capturar o print do passo {step.StepNumber}: {ex.Message}");
                 }
                 finally
                 {
-                    // Se abriu uma nova aba externa (ex: Google Maps), fecha e retorna o foco à página de teste
                     if (targetShotPage != page && !targetShotPage.IsClosed)
                     {
                         try { await targetShotPage.CloseAsync(); } catch { }
@@ -337,6 +382,8 @@ public class AgentRunner
 
                 step.DurationMs = sw.ElapsedMilliseconds;
                 step.ActionsCount = actions;
+                step.VisitedUrl = visitedUrl;
+                step.ExecutedActions = traceSummary;
                 step.Status = ok ? "Passed" : "Failed";
                 step.ErrorDetails = ok ? null : reason;
 
@@ -344,10 +391,8 @@ public class AgentRunner
                 else exec.FailedSteps++;
 
                 await Log(ok
-                    ? $"✔ Passo {step.StepNumber} aprovado: {reason}"
-                    : $"✖ Passo {step.StepNumber} com falha: {reason}");
-
-                // NÃO aborta a suíte inteira! Permite testar os passos seguintes caso a página continue utilizável
+                    ? $"✔ Passo {step.StepNumber} aprovado ({actions} ações em {sw.ElapsedMilliseconds}ms | URL: {visitedUrl}): {reason}"
+                    : $"✖ Passo {step.StepNumber} falhou ({actions} ações em {sw.ElapsedMilliseconds}ms | URL: {visitedUrl}): {reason}");
             }
 
             var minSteps = exec.Steps.Where(s => s.CriterioMinimo).ToList();
@@ -393,20 +438,49 @@ public class AgentRunner
             {
                 if (ctx != null)
                 {
-                    // Mantém visualização final por 1.8s para gravar o desfecho completo no vídeo
-                    try { await Task.Delay(1800); } catch { }
-                    await ctx.CloseAsync(); // finaliza e grava o .webm
-                    if (page?.Video != null)
+                    // Mantém visualização final por 1.5s para gravar o desfecho completo no vídeo
+                    try { await Task.Delay(1500); } catch { }
+                    await ctx.CloseAsync(); // finaliza gravação do FFmpeg e grava o .webm no disco
+
+                    var dest = Path.Combine(evidenceDir, "video.webm");
+                    try
                     {
-                        var rawPath = await page.Video.PathAsync();
-                        var dest = Path.Combine(evidenceDir, "video.webm");
-                        if (File.Exists(rawPath) && !string.Equals(rawPath, dest, StringComparison.OrdinalIgnoreCase))
-                            File.Move(rawPath, dest, true);
-                        if (File.Exists(dest))
+                        if (page?.Video != null)
                         {
-                            exec.VideoFileName = "video.webm";
-                            exec.VideoUrl = $"/evidencias/{id}/video.webm";
+                            var rawPath = await page.Video.PathAsync();
+                            if (!string.IsNullOrWhiteSpace(rawPath) && File.Exists(rawPath) && !string.Equals(rawPath, dest, StringComparison.OrdinalIgnoreCase))
+                            {
+                                File.Move(rawPath, dest, true);
+                            }
                         }
+                    }
+                    catch (Exception vidEx)
+                    {
+                        await Log($"   ℹ Verificando arquivo de vídeo alternativo ({vidEx.Message})...");
+                    }
+
+                    // Fallback: garante localização de qualquer .webm gerado pelo contexto no diretório de evidências
+                    if (!File.Exists(dest) && Directory.Exists(evidenceDir))
+                    {
+                        var anyWebm = Directory.GetFiles(evidenceDir, "*.webm")
+                            .OrderByDescending(f => new FileInfo(f).Length)
+                            .FirstOrDefault();
+                        if (!string.IsNullOrWhiteSpace(anyWebm) && !string.Equals(anyWebm, dest, StringComparison.OrdinalIgnoreCase))
+                        {
+                            File.Move(anyWebm, dest, true);
+                        }
+                    }
+
+                    if (File.Exists(dest) && new FileInfo(dest).Length > 0)
+                    {
+                        var sizeKb = Math.Max(1, new FileInfo(dest).Length / 1024);
+                        exec.VideoFileName = "video.webm";
+                        exec.VideoUrl = $"/evidencias/{id}/video.webm";
+                        await Log($"🎬 Vídeo real gravado com sucesso: {exec.VideoUrl} ({sizeKb} KB)");
+                    }
+                    else
+                    {
+                        await Log($"⚠ Aviso: arquivo de vídeo .webm não encontrado em {evidenceDir} após fechamento do contexto.");
                     }
                 }
                 if (browser != null) await browser.CloseAsync();
@@ -422,103 +496,63 @@ public class AgentRunner
         }
     }
 
-    private async Task RunCloudHttpDomEngineAsync(
-        int id,
-        ExecuteRequestDto req,
-        TestExecution exec,
-        string evidenceDir,
-        Func<string, Task> Log)
+    private static async Task CaptureLiveFrameAsync(IPage? page, string evidenceDir)
     {
-        await Log($"Conectando ao alvo {req.TargetUrl} via Motor HTTP/DOM Cloud...");
-        int httpStatus = 200;
-        long latencyMs = 120;
+        if (page == null || page.IsClosed) return;
         try
         {
-            using var handler = new HttpClientHandler { ServerCertificateCustomValidationCallback = (_, _, _, _) => true };
-            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 QoreQuantumCloudEngine/2.0");
-            client.DefaultRequestHeaders.TryAddWithoutValidation("Bypass-Tunnel-Reminder", "true");
-            client.DefaultRequestHeaders.TryAddWithoutValidation("ngrok-skip-browser-warning", "true");
-            var swProbe = Stopwatch.StartNew();
-            using var resp = await client.GetAsync(req.TargetUrl);
-            swProbe.Stop();
-            httpStatus = (int)resp.StatusCode;
-            latencyMs = swProbe.ElapsedMilliseconds;
-            await Log($"✔ Alvo acessível (HTTP {httpStatus} em {latencyMs}ms). Iniciando bateria de casos de teste...");
+            var tmpPath = Path.Combine(evidenceDir, "live.tmp.png");
+            var finalPath = Path.Combine(evidenceDir, "live.png");
+            await page.ScreenshotAsync(new PageScreenshotOptions { Path = tmpPath });
+            if (File.Exists(tmpPath))
+            {
+                File.Move(tmpPath, finalPath, true);
+            }
         }
-        catch (Exception ex)
-        {
-            await Log($"⚠ Aviso de rede ao acessar {req.TargetUrl}: {ex.Message.Split('\n')[0]} — Prosseguindo validação contratual DOM...");
-        }
-
-        foreach (var step in exec.Steps.OrderBy(s => s.StepNumber))
-        {
-            var codeTag = string.IsNullOrWhiteSpace(step.Codigo) ? $"TC-{step.StepNumber:D2}" : step.Codigo;
-            step.Status = "Running";
-            await Log($"▶ [{codeTag}] Passo {step.StepNumber}/{exec.TotalSteps} ({step.Tipo ?? "Funcional"}): {step.StepTitle}");
-            await Task.Delay(650);
-
-            var shotName = $"passo_{step.StepNumber}.svg";
-            var safeTitle = System.Net.WebUtility.HtmlEncode(step.StepTitle);
-            var safeExpected = System.Net.WebUtility.HtmlEncode(step.ResultadoEsperado ?? "Critério de aceitação validado com sucesso");
-            var safeUrl = System.Net.WebUtility.HtmlEncode(req.TargetUrl);
-            var svg = $@"<svg xmlns=""http://www.w3.org/2000/svg"" width=""1280"" height=""720"" viewBox=""0 0 1280 720"">
-  <rect width=""1280"" height=""720"" fill=""#060911""/>
-  <rect x=""40"" y=""40"" width=""1200"" height=""640"" rx=""20"" fill=""#0B101D"" stroke=""#06B6D4"" stroke-width=""2""/>
-  <text x=""80"" y=""110"" fill=""#06B6D4"" font-family=""monospace"" font-size=""22"" font-weight=""bold"">QORE ANALYTICS • QUANTUM CLOUD E2E EVIDENCE [{codeTag}]</text>
-  <text x=""80"" y=""160"" fill=""#F8FAFC"" font-family=""sans-serif"" font-size=""28"" font-weight=""bold"">{safeTitle}</text>
-  <text x=""80"" y=""220"" fill=""#94A3B8"" font-family=""monospace"" font-size=""18"">Target URL: {safeUrl} (HTTP {httpStatus} • {latencyMs}ms)</text>
-  <rect x=""80"" y=""270"" width=""1120"" height=""160"" rx=""14"" fill=""#064E3B"" fill-opacity=""0.35"" stroke=""#10B981"" stroke-width=""1.5""/>
-  <text x=""110"" y=""325"" fill=""#34D399"" font-family=""monospace"" font-size=""20"" font-weight=""bold"">✔ ASSERT / CRITÉRIO DE ACEITE APROVADO:</text>
-  <text x=""110"" y=""375"" fill=""#E2E8F0"" font-family=""sans-serif"" font-size=""20"">{safeExpected}</text>
-  <text x=""80"" y=""620"" fill=""#64748B"" font-family=""monospace"" font-size=""16"">Timestamp: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC • Norma ISTQB / ISO 29119</text>
-</svg>";
-            await File.WriteAllTextAsync(Path.Combine(evidenceDir, shotName), svg);
-
-            step.ScreenshotFileName = shotName;
-            step.ScreenshotUrl = $"/evidencias/{id}/{shotName}";
-            step.DurationMs = 650 + latencyMs;
-            step.ActionsCount = 3;
-            step.Status = "Passed";
-            exec.PassedSteps++;
-            await Log($"✔ Passo {step.StepNumber} aprovado: {step.ResultadoEsperado ?? "Critério verificado"}");
-        }
-
-        var minSteps = exec.Steps.Where(s => s.CriterioMinimo).ToList();
-        exec.TotalCriteriosMinimos = minSteps.Count;
-        exec.PassedCriteriosMinimos = minSteps.Count(s => s.Status == "Passed");
-        exec.FailedCriteriosMinimos = 0;
-        exec.CriteriosMinimosAtingidos = true;
-        exec.Status = "Passed";
-        await Log($"\n🏆 SUÍTE APROVADA COM EXCELÊNCIA: 100% dos testes passaram ({exec.PassedSteps}/{exec.TotalSteps})!");
+        catch { }
     }
 
-    private async Task<(bool Ok, string Reason, int Actions, StepBatchDecision? Decision)> RunStepAsync(
-        IPage page,
+    private async Task<(bool Ok, string Reason, int Actions, StepBatchDecision? Decision, string VisitedUrl, string TraceSummary)> RunStepAsync(
+        Func<IPage> getActivePage,
         TestStepExecution step,
         TestExecution exec,
         TestData data,
         List<string> history,
         GeminiClient gemini,
+        string evidenceDir,
         Func<string, Task> log)
     {
         int totalActionsCount = 0;
+        var stepTrace = new List<string>();
         var codeTag = string.IsNullOrWhiteSpace(step.Codigo) ? $"TC-{step.StepNumber:D2}" : step.Codigo;
+        StepBatchDecision? lastDecision = null;
+        string lastUrl = exec.TargetUrl;
 
-        for (int round = 1; round <= MaxRoundsPerStep; round++)
+        for (int round = 1; round <= MaxRoundsPerStep + 1; round++)
         {
+            var page = getActivePage();
+            lastUrl = page.Url;
+            var evaluationOnly = round > MaxRoundsPerStep;
+
             try
             {
                 await page.EvaluateAsync("([t, s, st]) => window.__qa_set_hud && window.__qa_set_hud(t, s, st)",
-                    new object[] { $"{codeTag}: {step.StepTitle}", $"IA analisando a tela e decidindo... (Ciclo {round}/{MaxRoundsPerStep})", "thinking" });
+                    new object[] {
+                        $"{codeTag}: {step.StepTitle}",
+                        evaluationOnly ? "IA fazendo verificação final da tela..." : $"IA analisando a tela e decidindo... (Ciclo {round}/{MaxRoundsPerStep})",
+                        "thinking"
+                    });
             }
             catch { }
 
             var snapshot = await SnapshotAsync(page);
-            var userPrompt = BuildPrompt(step, exec, data, history, snapshot);
+            var userPrompt = BuildPrompt(step, exec, data, history, snapshot, evaluationOnly);
 
             var (json, _, error) = await gemini.GenerateJsonAsync(AgentSystemPrompt, userPrompt, log, temperature: 0.1);
-            if (json == null) return (false, $"IA indisponível: {error}", totalActionsCount, null);
+            if (json == null)
+            {
+                return (false, $"IA indisponível: {error}", totalActionsCount, lastDecision, lastUrl, string.Join(" → ", stepTrace));
+            }
 
             StepBatchDecision? decision = null;
             try
@@ -549,28 +583,47 @@ public class AgentRunner
             }
 
             if (decision == null) continue;
+            lastDecision = decision;
 
-            // Se a IA determinou conclusão antes ou durante
             if (decision.Concluido)
             {
-                return (true, decision.Motivo ?? "objetivo do passo concluído", totalActionsCount, decision);
+                var summary = string.IsNullOrEmpty(stepTrace.FirstOrDefault())
+                    ? $"Validação direta na URL {lastUrl}: {decision.Motivo}"
+                    : string.Join(" → ", stepTrace);
+                return (true, decision.Motivo ?? "objetivo do passo concluído", totalActionsCount, decision, lastUrl, summary);
             }
             if (decision.Falhou)
             {
-                return (false, decision.Motivo ?? "falha identificada pela IA", totalActionsCount, decision);
+                var summary = stepTrace.Count > 0 ? string.Join(" → ", stepTrace) : $"Falha ao inspecionar {lastUrl}";
+                return (false, decision.Motivo ?? "falha identificada pela IA", totalActionsCount, decision, lastUrl, summary);
             }
 
-            if (decision.Acoes == null || decision.Acoes.Count == 0)
+            if (evaluationOnly || decision.Acoes == null || decision.Acoes.Count == 0)
             {
-                return (true, decision.Motivo ?? "ações do passo finalizadas", totalActionsCount, decision);
+                // Se já está no ciclo final sem novas ações e a IA ainda não marcou concluido nem falhou:
+                bool inferredOk = totalActionsCount > 0 && !evaluationOnly;
+                var finalMsg = decision.Motivo ?? (inferredOk
+                    ? "Ações concluídas na interface."
+                    : $"Não foi possível confirmar o critério esperado na tela ({lastUrl}) após {MaxRoundsPerStep} ciclos.");
+                return (inferredOk, finalMsg, totalActionsCount, decision, lastUrl,
+                    stepTrace.Count > 0 ? string.Join(" → ", stepTrace) : $"Inspecionado em {lastUrl}");
             }
 
             // Executa o lote de ações no Playwright com feedback dinâmico visual e mouse virtual
             foreach (var act in decision.Acoes)
             {
+                page = getActivePage();
                 var acao = (act.Acao ?? "").Trim().ToLowerInvariant();
-                if (acao is "concluido") return (true, act.Motivo ?? "objetivo concluído", totalActionsCount, decision);
-                if (acao is "falhou") return (false, act.Motivo ?? "falha detectada", totalActionsCount, decision);
+                if (acao is "concluido")
+                {
+                    var summary = stepTrace.Count > 0 ? string.Join(" → ", stepTrace) : $"Validado em {page.Url}";
+                    return (true, act.Motivo ?? "objetivo concluído", totalActionsCount, decision, page.Url, summary);
+                }
+                if (acao is "falhou")
+                {
+                    var summary = stepTrace.Count > 0 ? string.Join(" → ", stepTrace) : $"Falhou em {page.Url}";
+                    return (false, act.Motivo ?? "falha detectada", totalActionsCount, decision, page.Url, summary);
+                }
 
                 await log($"   🤖 {acao}{(act.Indice.HasValue ? $" #{act.Indice}" : "")}{(string.IsNullOrEmpty(act.Valor) ? "" : $" \"{Trunc(act.Valor, 40)}\"")} — {act.Motivo}");
 
@@ -583,13 +636,22 @@ public class AgentRunner
 
                 var result = await ExecuteActionAsync(page, act, acao, exec.TargetUrl);
                 totalActionsCount++;
+                var traceItem = $"{acao.ToUpper()}{(act.Indice.HasValue ? $" #{act.Indice}" : "")}" +
+                                (string.IsNullOrEmpty(act.Valor) ? "" : $" \"{Trunc(act.Valor, 22)}\"") +
+                                (result == "ok" ? "" : $" ({result})");
+                stepTrace.Add(traceItem);
                 history.Add($"[passo {step.StepNumber}] {acao} #{act.Indice} \"{Trunc(act.Valor ?? "", 30)}\" => {result}");
 
                 if (result != "ok")
                 {
                     await log($"   ⚠ {result}");
                 }
+
+                await CaptureLiveFrameAsync(getActivePage(), evidenceDir);
             }
+
+            page = getActivePage();
+            lastUrl = page.Url;
 
             // Aguarda a aplicação processar as ações
             try
@@ -597,16 +659,19 @@ public class AgentRunner
                 await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new PageWaitForLoadStateOptions { Timeout = 3000 });
             }
             catch { }
-            await page.WaitForTimeoutAsync(400);
+            await page.WaitForTimeoutAsync(450);
+            await EnsureVisualEngineAsync(page);
+            await CaptureLiveFrameAsync(page, evidenceDir);
 
             // Se o lote de ações já encerrou o passo previsto pelo modelo
             if (decision.ConcluidoAposAcoes)
             {
-                return (true, decision.Motivo ?? "lote de ações concluído com sucesso", totalActionsCount, decision);
+                return (true, decision.Motivo ?? "lote de ações concluído com sucesso", totalActionsCount, decision, lastUrl, string.Join(" → ", stepTrace));
             }
         }
 
-        return (true, "Passo concluído após execução das ações", totalActionsCount, null);
+        return (false, $"O passo não confirmou o resultado esperado após {MaxRoundsPerStep} ciclos em {lastUrl}", totalActionsCount, lastDecision, lastUrl,
+            stepTrace.Count > 0 ? string.Join(" → ", stepTrace) : $"Inspecionado em {lastUrl}");
     }
 
     private static async Task<string> ExecuteActionAsync(IPage page, AgentAction act, string acao, string baseUrl)
@@ -1081,7 +1146,7 @@ public class AgentRunner
         return "{\"url\":\"" + page.Url + "\",\"elements\":[]}";
     }
 
-    private static string BuildPrompt(TestStepExecution step, TestExecution exec, TestData data, List<string> history, string snapshot)
+    private static string BuildPrompt(TestStepExecution step, TestExecution exec, TestData data, List<string> history, string snapshot, bool evaluationOnly = false)
     {
         var hoje = DateTime.Today;
         var ontem = hoje.AddDays(-1);
@@ -1111,46 +1176,56 @@ public class AgentRunner
         sb.AppendLine();
         sb.AppendLine("HISTÓRICO RECENTE DE AÇÕES:");
         if (history.Count == 0) sb.AppendLine("(nenhuma)");
-        foreach (var h in history.TakeLast(6)) sb.AppendLine(h);
+        foreach (var h in history.TakeLast(8)) sb.AppendLine(h);
         sb.AppendLine();
-        sb.AppendLine("ELEMENTOS DA TELA (campos, botões e alertas):");
+        if (evaluationOnly)
+        {
+            sb.AppendLine("MODO DE INSPEÇÃO FINAL (LIMITE DE RODADAS ATINGIDO):");
+            sb.AppendLine("Analise a tela e a URL atuais mostradas abaixo e dê o veredito final SEM enviar novas ações ('acoes': []).");
+            sb.AppendLine("Responda 'concluido': true SOMENTE se o estado atual da tela comprovar claramente o Critério de Aceite (informando 'elementoValidado'). Caso contrário, responda 'falhou': true explicando objetivamente o que faltou ou falhou.");
+            sb.AppendLine();
+        }
+        sb.AppendLine("ELEMENTOS DA TELA (campos, botões, links e alertas):");
         sb.AppendLine(snapshot);
         return sb.ToString();
     }
 
-    private const string AgentSystemPrompt = @"Você é um agente autônomo de testes E2E com Playwright.
-Dado o PASSO ATUAL, a DESCRIÇÃO DO PASSO e os elementos na tela, responda com o lote de ações necessárias para realizar/completar o passo.
+    private const string AgentSystemPrompt = @"Você é um agente autônomo de testes E2E reais com navegador Chromium + Playwright.
+Dado o PASSO ATUAL, a DESCRIÇÃO DO PASSO e os elementos visíveis na tela real da aplicação alvo, execute ações reais na interface para percorrer o fluxo e validar o resultado na própria página.
 
-REGRAS CRÍTICAS PARA TESTES (NEGATIVOS E POSITIVOS):
-1. TESTE NEGATIVO (Ex.: 'tentar login com dados inválidos e esperar erro' OU 'tentar agendar no passado e esperar bloqueio'):
-   - O objetivo do teste é justamente CONFIRMAR que o sistema REJEITA a ação inválida!
-   - Se a tela já exibir mensagem de erro, toast de credenciais incorretas, aviso de data inválida ou bloqueio: ISSO É SUCESSO DO TESTE! Responda ""concluido"": true com o motivo 'O sistema bloqueou a ação inválida e exibiu o erro esperado'.
-   - Responda ""falhou"": true apenas se o sistema aceitar indevidamente dados inválidos ou se quebrar a aplicação (ex: tela branca/500).
-   - Ao enviar dados inválidos para testar rejeição, deixe ""concluidoAposAcoes"": false para que na próxima rodada você possa inspecionar e confirmar a mensagem de erro ou bloqueio.
+REGRAS CRÍTICAS PARA NAVEGAÇÃO REAL E TESTES (POSITIVOS, NEGATIVOS E BASEADOS EM COMMITS):
+1. NAVEGAÇÃO E EVIDÊNCIA VISUAL OBRIGATÓRIA:
+   - NUNCA marque ""concluido"": true ou ""concluidoAposAcoes"": true sem antes ter executado na interface do sistema ou sem apontar claramente na tela atual a comprovação do critério!
+   - Se o passo exige abrir uma página, preencher formulário, clicar em botão, filtrar ou mudar de rota, retorne as ""acoes"" necessárias e deixe ""concluido"": false e ""concluidoAposAcoes"": false para inspecionar a nova tela resultante antes de aprovar.
+   - Sempre que aprovar um passo visual ou uma assertiva final na tela atual (""concluido"": true), preencha ""elementoValidado"": <indice 'i'> com o índice do elemento na tela que comprova o resultado (para destaque visual no print e no vídeo).
 
-2. TESTE POSITIVO (Ex.: 'fazer login com credenciais válidas' OU 'agendar para amanhã'):
-   - Responda ""concluido"": true quando o login for bem-sucedido ou quando o agendamento for confirmado.
+2. PASSOS ORIGINADOS DE COMMITS / COMPONENTES / TESTES TÉCNICOS:
+   - Se a descrição do passo mencionar arquivo de código, componente React/Next ou regra extraída de commit do Git, NÃO trate como impossível: navegue até a funcionalidade/rota correspondente na URL em execução no navegador (ex: clicando no menu/link ou usando 'navegar') e valide o comportamento real visível para o usuário final!
 
-3. FLUXOS E WIZARDS (Ex: Agendamento em etapas):
+3. TESTE NEGATIVO (Ex.: 'tentar login com dados inválidos e esperar erro' OU 'tentar agendar no passado e esperar bloqueio'):
+   - O objetivo do teste é CONFIRMAR que o sistema REJEITA a ação inválida na interface!
+   - Primeiro execute a tentativa inválida (""concluidoAposAcoes"": false). Na rodada seguinte, se a tela exibir mensagem de erro, toast de credenciais incorretas, campo inválido ou bloqueio do botão/ação: ISSO É SUCESSO! Responda ""concluido"": true com ""elementoValidado"" apontando para o alerta/mensagem e motivo claro.
+   - Responda ""falhou"": true apenas se o sistema aceitar indevidamente dados inválidos ou quebrar (tela branca/500/erro não tratado).
+
+4. TESTE POSITIVO (Ex.: 'fazer login com credenciais válidas', 'navegar para serviços', 'agendar'):
+   - Execute as interações necessárias até ver o resultado confirmado na tela (nova rota, dashboard, confirmação, item renderizado). Só então responda ""concluido"": true com ""elementoValidado"".
+
+5. FLUXOS E WIZARDS (Ex: Agendamento em etapas):
    - Se o passo requer escolher data/horário mas a tela ainda estiver na seleção de serviço ou barbeiro, selecione o primeiro serviço/barbeiro clicando no card correspondente e clique no botão de avançar.
    - Para agendamento em data futura, selecione a data de amanhã, clique em um botão de horário disponível (ex: 09:00, 10:00) e avance até a tela de confirmação.
 
-4. PREENCHIMENTO RÁPIDO:
-   - Se for um formulário (ex: login), você pode enviar todos os campos (e-mail, senha) e o clique de entrar no mesmo array 'acoes'.
+6. PREENCHIMENTO RÁPIDO E VALIDAÇÕES VISUAIS:
+   - Em formulários (ex: login), envie os campos + clique de envio no mesmo array 'acoes', mantendo ""concluidoAposAcoes"": false para validar a resposta real da aplicação.
    - Para inputs de data, use o formato AAAA-MM-DD das DATAS CALCULADAS fornecidas.
-
-5. VALIDAÇÃO VISUAL & ASSERÇÕES DE DADOS (Ex: 'validar endereço na Navbar ou Seção de Localização', 'validar CEP', 'validar badge de status'):
-   - Se o critério do passo for apenas constatar que um texto/informação está presente e correta na tela atual:
-     - Responda ""concluido"": true com a explicação no ""motivo"".
-     - OBRIGATÓRIO: preencha ""elementoValidado"": <indice 'i'> com o número do elemento que comprova a informação! O robô usará isso para rolar a tela até o elemento, apontar o mouse para ele, destacá-lo em verde e tirar o print evidenciando exatamente o elemento validado!
+   - Se a tela exibir erro 404, 500, página em branco ou que o sistema não carregou o conteúdo esperado, responda ""falhou"": true explicando o erro observado na tela.
 
 Responda ESTRITAMENTE em JSON:
 {
-  ""concluido"": false, // true se o objetivo do passo já foi atingido na tela atual
-  ""concluidoAposAcoes"": false, // true APENAS se tiver certeza absoluta que não precisa inspecionar o resultado
-  ""falhou"": false, // true se o sistema violou a regra de negócio esperada
-  ""motivo"": ""explicação sucinta em português"",
-  ""elementoValidado"": null, // índice numérico 'i' do elemento que comprova o assert/resultado (ex: 12)
+  ""concluido"": false,
+  ""concluidoAposAcoes"": false,
+  ""falhou"": false,
+  ""motivo"": ""explicação objetiva em português do que foi executado e observado na tela"",
+  ""elementoValidado"": null,
   ""acoes"": [
     { ""acao"": ""preencher|clicar|limpar|selecionar|pressionar|navegar|aguardar"", ""indice"": 0, ""valor"": ""texto/data/url"", ""motivo"": ""curto"" }
   ]
@@ -1158,9 +1233,9 @@ Responda ESTRITAMENTE em JSON:
 
 Regras adicionais:
 - Use os índices numéricos 'i' dos elementos fornecidos.
-- 'navegar' aceita rotas relativas (ex: /admin ou /login).";
+- 'navegar' aceita rotas relativas (ex: /admin ou /login) ou URL completa dentro do site alvo.";
 
-    // Snapshot otimizado: inclui elementos acionáveis, cards clicáveis, textos informativos (endereços, CEPs, badges) e alertas/toasts
+    // Snapshot otimizado: inclui elementos acionáveis, links, labels, cards clicáveis, textos informativos (endereços, CEPs, badges) e alertas/toasts
     private const string SnapshotJs = @"() => {
         document.querySelectorAll('[data-qa-idx]').forEach(e => e.removeAttribute('data-qa-idx'));
         const isVisible = (el) => {
@@ -1169,7 +1244,7 @@ Regras adicionais:
             const s = getComputedStyle(el);
             return s.visibility !== 'hidden' && s.display !== 'none' && s.opacity !== '0';
         };
-        const targets = Array.from(document.querySelectorAll('input, button, a[href], select, textarea, [role=button], [role=tab], [role=menuitem], [role=alert], .alert, .toast, [class*=""error""], [class*=""danger""], [class*=""success""], [class*=""card""], [class*=""option""], [class*=""item""], [class*=""slot""], [class*=""address""], [class*=""badge""], [class*=""location""], p, h1, h2, h3, h4, h5, address'))
+        const targets = Array.from(document.querySelectorAll('input, button, a, label, select, textarea, [role=button], [role=tab], [role=menuitem], [role=alert], .alert, .toast, [class*=""error""], [class*=""danger""], [class*=""success""], [class*=""card""], [class*=""option""], [class*=""item""], [class*=""slot""], [class*=""address""], [class*=""badge""], [class*=""location""], p, h1, h2, h3, h4, h5, address'))
             .filter(isVisible);
 
         const elements = [];

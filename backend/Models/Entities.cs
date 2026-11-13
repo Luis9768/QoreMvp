@@ -71,6 +71,7 @@ public class TestExecution
     public bool CriteriosMinimosAtingidos { get; set; }
     public string? VideoFileName { get; set; }
     public string? VideoUrl { get; set; }
+    public string? InitialScreenshotUrl { get; set; }
     public string Logs { get; set; } = string.Empty;
 
     public List<TestStepExecution> Steps { get; set; } = new();
@@ -98,6 +99,8 @@ public class TestStepExecution
     public string Status { get; set; } = "Pending"; // Pending, Running, Passed, Failed, Skipped
     public string? ScreenshotFileName { get; set; }
     public string? ScreenshotUrl { get; set; }
+    public string? ExecutedActions { get; set; }
+    public string? VisitedUrl { get; set; }
     public string? ErrorDetails { get; set; }
     public int ActionsCount { get; set; }
     public long DurationMs { get; set; }

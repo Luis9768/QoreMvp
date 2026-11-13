@@ -12,16 +12,27 @@ public class QaController : ControllerBase
 {
     private readonly IGeminiPlannerService _planner;
     private readonly AgentRunner _runner;
+    private readonly PlaywrightBootstrapService _bootstrap;
     private readonly GitHubService _gitHub;
     private readonly QaDbContext _db;
+    private readonly IWebHostEnvironment _env;
     private readonly ILogger<QaController> _logger;
 
-    public QaController(IGeminiPlannerService planner, AgentRunner runner, GitHubService gitHub, QaDbContext db, ILogger<QaController> logger)
+    public QaController(
+        IGeminiPlannerService planner,
+        AgentRunner runner,
+        PlaywrightBootstrapService bootstrap,
+        GitHubService gitHub,
+        QaDbContext db,
+        IWebHostEnvironment env,
+        ILogger<QaController> logger)
     {
         _planner = planner;
         _runner = runner;
+        _bootstrap = bootstrap;
         _gitHub = gitHub;
         _db = db;
+        _env = env;
         _logger = logger;
     }
 
@@ -32,6 +43,7 @@ public class QaController : ControllerBase
         {
             status = "Online",
             database = _db.Database.ProviderName ?? "Unknown",
+            playwright = _bootstrap.GetStatus(),
             timestamp = DateTime.UtcNow
         });
     }
@@ -205,6 +217,17 @@ public class QaController : ControllerBase
             .Include(e => e.Steps.OrderBy(s => s.StepNumber))
             .FirstOrDefaultAsync(e => e.Id == id);
         return exec == null ? NotFound() : Ok(exec);
+    }
+
+    [HttpGet("executions/{id}/live")]
+    public IActionResult GetLiveFrame(int id)
+    {
+        var livePath = Path.Combine(_env.ContentRootPath, "wwwroot", "evidencias", id.ToString(), "live.png");
+        if (!System.IO.File.Exists(livePath))
+            return NoContent();
+
+        Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+        return PhysicalFile(livePath, "image/png");
     }
 
     [HttpPost("github/create-branch")]

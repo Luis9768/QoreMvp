@@ -56,7 +56,10 @@ import {
   WifiOff,
   Edit3,
   Award,
-  UserPlus
+  UserPlus,
+  ChevronLeft,
+  ChevronRight,
+  Camera
 } from 'lucide-react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api/qa';
@@ -116,7 +119,11 @@ export default function Home() {
   // Estados de Planejamento e Análise de Testes
   const [isPlanning, setIsPlanning] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
-  const [backendStatus, setBackendStatus] = useState({ online: false, db: 'Verificando...', model: 'Quantum AI' });
+  const [backendStatus, setBackendStatus] = useState({ online: false, db: 'Verificando...', model: 'Quantum AI', playwright: null });
+  const [liveFrameUrl, setLiveFrameUrl] = useState(null);
+  const [videoSpeed, setVideoSpeed] = useState(1);
+  const executionPanelRef = useRef(null);
+  const videoRef = useRef(null);
 
   const [planResult, setPlanResult] = useState(null);
   const [editableSteps, setEditableSteps] = useState([]);
@@ -209,13 +216,18 @@ export default function Home() {
         if (res.ok) {
           const data = await res.json();
           if (isMounted) {
-            setBackendStatus({ online: true, db: data.database, model: 'Quantum AI' });
+            setBackendStatus({
+              online: true,
+              db: data.database,
+              model: 'Quantum AI',
+              playwright: data.playwright || null
+            });
           }
         } else {
-          if (isMounted) setBackendStatus({ online: false, db: 'Backend offline', model: '-' });
+          if (isMounted) setBackendStatus({ online: false, db: 'Backend offline', model: '-', playwright: null });
         }
       } catch (err) {
-        if (isMounted) setBackendStatus({ online: false, db: 'Desconectado', model: '-' });
+        if (isMounted) setBackendStatus({ online: false, db: 'Desconectado', model: '-', playwright: null });
       }
     }
 
@@ -266,6 +278,50 @@ export default function Home() {
     }, 1000);
     return () => clearInterval(interval);
   }, [execution?.id, execution?.status]);
+
+  useEffect(() => {
+    if (!execution?.id || (execution.status !== 'Running' && execution.status !== 'Pending')) {
+      setLiveFrameUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      return;
+    }
+
+    let cancelled = false;
+    let tick = 0;
+
+    const pullFrame = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/executions/${execution.id}/live?t=${Date.now()}_${tick++}`, {
+          cache: 'no-store'
+        });
+        if (!cancelled && res.status === 200) {
+          const blob = await res.blob();
+          if (!cancelled && blob.size > 0) {
+            const objUrl = URL.createObjectURL(blob);
+            setLiveFrameUrl(prev => {
+              if (prev) URL.revokeObjectURL(prev);
+              return objUrl;
+            });
+          }
+        }
+      } catch (err) {}
+    };
+
+    pullFrame();
+    const timer = setInterval(pullFrame, 800);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [execution?.id, execution?.status]);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = videoSpeed;
+    }
+  }, [videoSpeed, execution?.videoUrl]);
 
   // Selecionar Projeto Ativo e Sincronizar URLs
   const selectProject = (proj, switchTab = false) => {
@@ -704,6 +760,10 @@ export default function Home() {
 
       const data = await res.json();
       if (res.ok && data.executionId) {
+        setLiveFrameUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev);
+          return null;
+        });
         setExecution({
           id: data.executionId,
           status: 'Running',
@@ -733,9 +793,10 @@ export default function Home() {
             criterioMinimo: p.criterioMinimo !== false,
             criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado,
             criteriosMinimos: p.criteriosMinimos || (p.criterioMinimoDescricao ? [p.criterioMinimoDescricao] : []),
-            status: 'Running'
+            status: idx === 0 ? 'Running' : 'Pending'
           }))
         });
+        setTimeout(() => executionPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
       } else {
         setIsExecuting(false);
         setExecutionError(data?.error || 'Erro ao iniciar execução no Playwright.');
@@ -828,6 +889,10 @@ export default function Home() {
 
       const execData = await execRes.json();
       if (execRes.ok && execData.executionId) {
+        setLiveFrameUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev);
+          return null;
+        });
         setExecution({
           id: execData.executionId,
           status: 'Running',
@@ -857,9 +922,10 @@ export default function Home() {
             criterioMinimo: p.criterioMinimo !== false,
             criterioMinimoDescricao: p.criterioMinimoDescricao || p.resultadoEsperado,
             criteriosMinimos: p.criteriosMinimos || (p.criterioMinimoDescricao ? [p.criterioMinimoDescricao] : []),
-            status: 'Running'
+            status: idx === 0 ? 'Running' : 'Pending'
           }))
         });
+        setTimeout(() => executionPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
       } else {
         setIsExecuting(false);
         setExecutionError(execData?.error || 'Erro ao iniciar execução no Playwright.');
@@ -1436,23 +1502,101 @@ export default function Home() {
     );
   };
 
+  const executionGallery = [];
+  if (execution?.initialScreenshotUrl) {
+    executionGallery.push({
+      url: `${BACKEND_HOST}${execution.initialScreenshotUrl}`,
+      title: 'Passo 0 — Tela Inicial Aberta',
+      subtitle: execution.targetUrl,
+      status: 'Info'
+    });
+  }
+  (execution?.steps || []).forEach(s => {
+    if (s.screenshotUrl) {
+      executionGallery.push({
+        url: `${BACKEND_HOST}${s.screenshotUrl}`,
+        title: `${s.codigo || `TC-${s.stepNumber}`} — ${s.stepTitle}`,
+        subtitle: s.visitedUrl || execution?.targetUrl,
+        status: s.status
+      });
+    }
+  });
+  const selectedGalleryIndex = selectedImage
+    ? executionGallery.findIndex(item => item.url === selectedImage)
+    : -1;
+  const selectedGalleryItem = selectedGalleryIndex >= 0 ? executionGallery[selectedGalleryIndex] : null;
+
   return (
     <div className="min-h-screen qore-ambient-bg text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-cyan-100">
 
       {/* MODAL: Screenshot Lightbox */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
           onClick={() => setSelectedImage(null)}
         >
-          <div className="relative max-w-5xl max-h-[90vh] bg-slate-900 border border-slate-700 rounded-2xl p-2 shadow-2xl overflow-hidden">
-            <button
-              onClick={() => setSelectedImage(null)}
-              className="absolute top-4 right-4 z-10 p-2 bg-slate-800/90 hover:bg-slate-700 rounded-full text-slate-200"
-            >
-              <X size={18} />
-            </button>
-            <img src={selectedImage} alt="Evidência" className="w-full h-auto max-h-[82vh] object-contain rounded-xl" />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-6xl w-full max-h-[92vh] bg-slate-950 border border-slate-700/80 rounded-2xl p-3 shadow-2xl flex flex-col gap-3 overflow-hidden"
+          >
+            <div className="flex items-center justify-between gap-3 px-2 pt-1">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {selectedGalleryIndex >= 0 && (
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
+                      Print {selectedGalleryIndex + 1} de {executionGallery.length}
+                    </span>
+                  )}
+                  <h4 className="text-sm font-semibold text-white truncate">
+                    {selectedGalleryItem ? selectedGalleryItem.title : 'Evidência Visual da Execução'}
+                  </h4>
+                </div>
+                {selectedGalleryItem?.subtitle && (
+                  <p className="text-[11px] font-mono text-slate-400 truncate mt-0.5">{selectedGalleryItem.subtitle}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={selectedImage}
+                  download
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium"
+                >
+                  <Download size={14} /> Baixar Print
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage(null)}
+                  className="p-2 bg-slate-800/90 hover:bg-slate-700 rounded-full text-slate-200"
+                  title="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="relative flex items-center justify-center bg-black/70 rounded-xl overflow-hidden min-h-[300px]">
+              {selectedGalleryIndex > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage(executionGallery[selectedGalleryIndex - 1].url)}
+                  className="absolute left-3 z-10 p-2.5 rounded-full bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-white shadow-lg"
+                  title="Print anterior"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+              )}
+              <img src={selectedImage} alt="Evidência" className="w-full h-auto max-h-[76vh] object-contain" />
+              {selectedGalleryIndex >= 0 && selectedGalleryIndex < executionGallery.length - 1 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedImage(executionGallery[selectedGalleryIndex + 1].url)}
+                  className="absolute right-3 z-10 p-2.5 rounded-full bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-white shadow-lg"
+                  title="Próximo print"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1741,6 +1885,28 @@ export default function Home() {
               <Database size={13} className="text-indigo-400" />
               <span>{backendStatus.db}</span>
             </div>
+
+            {backendStatus.online && (
+              <div
+                title={backendStatus.playwright?.message || 'Status do Motor Chromium + Vídeo WebM'}
+                className={`hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-mono text-[11px] ${
+                  backendStatus.playwright?.ready
+                    ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300'
+                    : backendStatus.playwright?.installing
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 animate-pulse'
+                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                }`}
+              >
+                <Video size={13} />
+                <span>
+                  {backendStatus.playwright?.ready
+                    ? 'Chromium + Vídeo Ready'
+                    : backendStatus.playwright?.installing
+                    ? 'Preparando Chromium...'
+                    : 'Chromium Sob Demanda'}
+                </span>
+              </div>
+            )}
 
             {/* Active User Switcher */}
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800">
@@ -2641,23 +2807,29 @@ export default function Home() {
 
             {/* Resultados da Execução Ativa */}
             {execution && (
-              <div className="qore-card rounded-2xl p-6 space-y-6">
+              <div ref={executionPanelRef} className="qore-card rounded-2xl p-6 space-y-6 scroll-mt-20">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-xs px-2.5 py-0.5 rounded-lg bg-slate-800 text-cyan-300 font-bold">#{execution.id}</span>
                       <h3 className="text-base font-bold text-white">{execution.prompt || 'Execução Playwright'}</h3>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1 font-mono">{execution.targetUrl}</p>
+                    <p className="text-xs text-slate-400 mt-1 font-mono break-all">{execution.targetUrl}</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                    execution.status === 'Passed' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
-                    execution.status === 'PassedWithWarnings' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
-                    execution.status === 'Failed' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
-                    'bg-amber-500/20 text-amber-300 animate-pulse'
-                  }`}>
-                    {execution.status}
-                  </span>
+                  <div className="flex items-center gap-2 self-start sm:self-center">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-slate-900 border border-slate-700 text-slate-300">
+                      <Camera size={12} className="text-cyan-400" />
+                      {execution.videoUrl ? 'Vídeo + Prints Reais' : execution.status === 'Running' ? 'Capturando ao vivo' : 'Execução'}
+                    </span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
+                      execution.status === 'Passed' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
+                      execution.status === 'PassedWithWarnings' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                      execution.status === 'Failed' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' :
+                      'bg-amber-500/20 text-amber-300 animate-pulse'
+                    }`}>
+                      {execution.status}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Métricas */}
@@ -2682,61 +2854,193 @@ export default function Home() {
                   </div>
                 </div>
 
+                {/* Print Inicial da Aplicação (Passo 0) */}
+                {execution.initialScreenshotUrl && (
+                  <div className="p-4 rounded-xl bg-slate-950/90 border border-cyan-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-500/15 px-2 py-0.5 rounded">PASSO 0</span>
+                        <h5 className="text-sm font-semibold text-white">Tela Inicial Aberta no Chromium</h5>
+                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                          Renderização Inicial
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400">Print real capturado imediatamente após o carregamento completo da aplicação alvo no navegador.</p>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-cyan-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded break-all">
+                        <Globe size={11} /> {execution.targetUrl}
+                      </span>
+                    </div>
+                    <div
+                      onClick={() => setSelectedImage(`${BACKEND_HOST}${execution.initialScreenshotUrl}`)}
+                      className="w-full md:w-60 h-36 rounded-xl overflow-hidden border border-slate-800 hover:border-cyan-400 cursor-pointer shrink-0 relative group bg-black"
+                    >
+                      <img
+                        src={`${BACKEND_HOST}${execution.initialScreenshotUrl}`}
+                        alt="Print inicial da aplicação"
+                        className="w-full h-full object-cover object-top"
+                      />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 text-xs font-semibold text-white transition-opacity">
+                        <Eye size={15} /> Ampliar Print Inicial
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Passos Executados */}
                 <div className="space-y-3">
                   {(execution.steps || []).map(s => (
-                    <div key={s.id || s.stepNumber} className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-1 flex-1">
+                    <div key={s.id || s.stepNumber} className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 flex flex-col md:flex-row md:items-start justify-between gap-4">
+                      <div className="space-y-2 flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-mono font-bold text-cyan-400">{s.codigo || `TC-${s.stepNumber}`}</span>
                           <h5 className="text-sm font-semibold text-white">{s.stepTitle}</h5>
                           <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
-                            s.status === 'Passed' ? 'bg-emerald-500/20 text-emerald-300' :
-                            s.status === 'Failed' ? 'bg-rose-500/20 text-rose-300' :
-                            'bg-amber-500/20 text-amber-300'
+                            s.status === 'Passed' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
+                            s.status === 'Failed' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                            s.status === 'Pending' ? 'bg-slate-800 text-slate-400 border border-slate-700' :
+                            'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
                           }`}>{s.status}</span>
                         </div>
-                        <p className="text-xs text-slate-400">{s.descricao || s.action}</p>
-                        {s.errorDetails && <p className="text-xs text-rose-400 font-medium">{s.errorDetails}</p>}
+                        <p className="text-xs text-slate-300">{s.descricao || s.action}</p>
+                        {s.visitedUrl && (
+                          <div className="flex items-center gap-1.5 text-[11px] font-mono text-cyan-300 bg-cyan-950/30 border border-cyan-500/20 px-2.5 py-1 rounded-lg w-fit max-w-full break-all">
+                            <Globe size={12} className="shrink-0" />
+                            <span>URL navegada: {s.visitedUrl}</span>
+                          </div>
+                        )}
+                        {s.executedActions && (
+                          <div className="rounded-lg bg-slate-900/90 border border-slate-800/90 p-2.5 space-y-1">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">
+                              Ações Executadas no Navegador Real
+                            </span>
+                            <div className="text-[11px] font-mono text-slate-200 whitespace-pre-line leading-relaxed">
+                              {s.executedActions}
+                            </div>
+                          </div>
+                        )}
+                        {s.errorDetails && (
+                          <p className={`text-xs font-medium ${s.status === 'Failed' ? 'text-rose-400' : 'text-emerald-300'}`}>
+                            {s.errorDetails}
+                          </p>
+                        )}
                       </div>
-                      {s.screenshotUrl && (
+                      {s.screenshotUrl ? (
                         <div
                           onClick={() => setSelectedImage(`${BACKEND_HOST}${s.screenshotUrl}`)}
-                          className="w-36 h-20 rounded-lg overflow-hidden border border-slate-800 hover:border-cyan-500 cursor-pointer shrink-0 relative group"
+                          className="w-full md:w-60 h-36 rounded-xl overflow-hidden border border-slate-800 hover:border-cyan-400 cursor-pointer shrink-0 relative group bg-black"
                         >
-                          <img src={`${BACKEND_HOST}${s.screenshotUrl}`} alt={`Print ${s.stepNumber}`} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                            <Eye size={16} className="text-white" />
+                          <img
+                            src={`${BACKEND_HOST}${s.screenshotUrl}`}
+                            alt={`Print ${s.stepNumber}`}
+                            className="w-full h-full object-cover object-top"
+                          />
+                          <div className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/75 text-[10px] font-mono text-slate-200 border border-white/10">
+                            Passo {s.stepNumber}
+                          </div>
+                          <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1.5 text-xs font-semibold text-white transition-opacity">
+                            <Eye size={16} /> Ampliar Print
                           </div>
                         </div>
-                      )}
+                      ) : s.status === 'Running' ? (
+                        <div className="w-full md:w-60 h-36 rounded-xl border border-dashed border-amber-500/40 bg-slate-900/70 shrink-0 flex flex-col items-center justify-center gap-1.5 text-amber-300 text-xs px-3 text-center">
+                          <Clock size={16} className="animate-spin" />
+                          <span>Navegando & capturando print...</span>
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
 
-                {/* Vídeo e Logs */}
+                {/* Vídeo / Tela ao Vivo e Logs */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-4 border-t border-slate-800">
-                  <div className="lg:col-span-6 space-y-2">
-                    <h4 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
-                      <Video size={14} className="text-cyan-400" /> Vídeo da Execução (.webm)
-                    </h4>
+                  <div className="lg:col-span-6 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <h4 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
+                        <Video size={14} className="text-cyan-400" />
+                        {execution.videoUrl
+                          ? 'Vídeo da Execução (.webm)'
+                          : execution.status === 'Running' || execution.status === 'Pending'
+                          ? 'Tela do Navegador em Tempo Real (Gravando .webm)'
+                          : 'Vídeo da Execução (.webm)'}
+                      </h4>
+                      {execution.videoUrl && (
+                        <div className="flex items-center gap-1.5">
+                          {[0.5, 1, 1.5, 2].map(rate => (
+                            <button
+                              key={rate}
+                              type="button"
+                              onClick={() => setVideoSpeed(rate)}
+                              className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-colors ${
+                                videoSpeed === rate
+                                  ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              {rate}x
+                            </button>
+                          ))}
+                          <a
+                            href={`${BACKEND_HOST}${execution.videoUrl}`}
+                            download
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-200"
+                          >
+                            <Download size={12} /> Baixar .webm
+                          </a>
+                        </div>
+                      )}
+                    </div>
                     {execution.videoUrl ? (
                       <div className="rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video">
-                        <video key={execution.videoUrl} controls autoPlay muted className="w-full h-full object-contain">
-                          <source src={`${BACKEND_HOST}${execution.videoUrl}`} type="video/webm" />
+                        <video
+                          ref={videoRef}
+                          key={`${execution.id}-${execution.videoUrl}`}
+                          controls
+                          autoPlay
+                          muted
+                          playsInline
+                          onLoadedMetadata={() => {
+                            if (videoRef.current) videoRef.current.playbackRate = videoSpeed;
+                          }}
+                          className="w-full h-full object-contain"
+                        >
+                          <source
+                            src={`${BACKEND_HOST}${execution.videoUrl}?v=${encodeURIComponent(execution.finishedAt || execution.id)}`}
+                            type="video/webm"
+                          />
                         </video>
                       </div>
+                    ) : (execution.status === 'Running' || execution.status === 'Pending') ? (
+                      <div className="relative rounded-xl overflow-hidden border border-cyan-500/30 bg-slate-950 aspect-video flex items-center justify-center">
+                        {!liveFrameUrl ? (
+                          <div className="text-slate-400 text-xs flex flex-col items-center gap-2 px-4 text-center">
+                            <Video size={22} className="text-cyan-400 animate-pulse" />
+                            <span>Abrindo Chromium Headless e iniciando gravação WebM...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <img
+                              src={liveFrameUrl}
+                              alt="Execução ao vivo no Chromium"
+                              className="w-full h-full object-contain bg-black"
+                            />
+                            <span className="absolute top-2.5 left-2.5 z-10 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-600/90 text-white text-[10px] font-bold tracking-wider uppercase shadow">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                              REC • AO VIVO
+                            </span>
+                          </>
+                        )}
+                      </div>
                     ) : (
-                      <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950 aspect-video flex items-center justify-center text-slate-500 text-xs">
-                        {execution.status === 'Running' ? 'Gravando vídeo no Chromium...' : 'Vídeo não disponível'}
+                      <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950 aspect-video flex items-center justify-center text-slate-500 text-xs px-4 text-center">
+                        Vídeo não disponível nesta execução (execute novamente após atualizar o backend).
                       </div>
                     )}
                   </div>
-                  <div className="lg:col-span-6 space-y-2">
+                  <div className="lg:col-span-6 space-y-2.5">
                     <h4 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
                       <Terminal size={14} className="text-indigo-400" /> Logs em Tempo Real
                     </h4>
-                    <div ref={logTerminalRef} className="rounded-xl p-4 bg-slate-950 border border-slate-800 font-mono text-xs text-slate-300 max-h-72 overflow-y-auto whitespace-pre-wrap">
+                    <div ref={logTerminalRef} className="rounded-xl p-4 bg-slate-950 border border-slate-800 font-mono text-xs text-slate-300 h-72 overflow-y-auto whitespace-pre-wrap">
                       {execution.logs || 'Aguardando logs...'}
                     </div>
                   </div>

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using QaAgent.Api.Data;
@@ -18,6 +19,7 @@ builder.Services.AddHealthChecks();
 builder.Services.AddHttpClient<GeminiClient>(c => c.Timeout = TimeSpan.FromSeconds(90));
 builder.Services.AddHttpClient<GitHubService>(c => c.Timeout = TimeSpan.FromSeconds(30));
 builder.Services.AddScoped<IGeminiPlannerService, GeminiPlannerService>();
+builder.Services.AddSingleton<PlaywrightBootstrapService>();
 builder.Services.AddSingleton<AgentRunner>();
 
 // 3. Configuração do Banco de Dados (PostgreSQL no Docker com fallback inteligente)
@@ -114,6 +116,9 @@ using (var scope = app.Services.CreateScope())
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestStepExecutions\" ADD COLUMN IF NOT EXISTS \"CriterioMinimo\" BOOLEAN DEFAULT TRUE;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestStepExecutions\" ADD COLUMN IF NOT EXISTS \"CriterioMinimoDescricao\" TEXT;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestStepExecutions\" ADD COLUMN IF NOT EXISTS \"CriteriosMinimosJson\" TEXT;"); } catch { }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestStepExecutions\" ADD COLUMN IF NOT EXISTS \"ExecutedActions\" TEXT;"); } catch { }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestStepExecutions\" ADD COLUMN IF NOT EXISTS \"VisitedUrl\" TEXT;"); } catch { }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"InitialScreenshotUrl\" TEXT;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"TotalCriteriosMinimos\" INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"PassedCriteriosMinimos\" INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"FailedCriteriosMinimos\" INTEGER DEFAULT 0;"); } catch { }
@@ -131,6 +136,9 @@ using (var scope = app.Services.CreateScope())
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestStepExecutions ADD COLUMN CriterioMinimo INTEGER DEFAULT 1;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestStepExecutions ADD COLUMN CriterioMinimoDescricao TEXT;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestStepExecutions ADD COLUMN CriteriosMinimosJson TEXT;"); } catch { }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE TestStepExecutions ADD COLUMN ExecutedActions TEXT;"); } catch { }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE TestStepExecutions ADD COLUMN VisitedUrl TEXT;"); } catch { }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN InitialScreenshotUrl TEXT;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN TotalCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN PassedCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN FailedCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }
@@ -156,7 +164,26 @@ app.Use(async (ctx, next) =>
     if (!noisy) Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] <-- {ctx.Response.StatusCode} {ctx.Request.Method} {path}");
 });
 
-app.UseStaticFiles();
+var contentTypeProvider = new FileExtensionContentTypeProvider();
+contentTypeProvider.Mappings[".webm"] = "video/webm";
+contentTypeProvider.Mappings[".png"] = "image/png";
+contentTypeProvider.Mappings[".svg"] = "image/svg+xml";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = contentTypeProvider,
+    OnPrepareResponse = ctx =>
+    {
+        if (ctx.File.Name.StartsWith("live", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+            ctx.Context.Response.Headers["Pragma"] = "no-cache";
+        }
+    }
+});
+
+// Dispara aquecimento do Chromium Headless + FFmpeg em background sem bloquear subida da API
+app.Services.GetRequiredService<PlaywrightBootstrapService>().StartBackgroundWarmup();
 
 app.UseAuthorization();
 app.MapGet("/", () => Results.Ok(new { status = "Healthy", service = "Qore Analytics API", timestamp = DateTime.UtcNow }));
