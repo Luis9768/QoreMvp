@@ -43,6 +43,6 @@ RUN mkdir -p /app/wwwroot/evidencias
 
 COPY --from=build /app/publish .
 
-EXPOSE 5000
+EXPOSE 5000 8080
 
-ENTRYPOINT ["dotnet", "QaAgent.Api.dll"]
+ENTRYPOINT ["dotnet", "QaAgent.Api.dll", "--urls", "http://0.0.0.0:5000;http://0.0.0.0:8080"]
