@@ -230,6 +230,59 @@ public class QaController : ControllerBase
         return PhysicalFile(livePath, "image/png");
     }
 
+    // Fallback persistente: se o container reiniciou e apagou wwwroot/evidencias, restaura do PostgreSQL e serve com suporte a Range/seek (206)
+    [HttpGet("/evidencias/{executionId:int}/{fileName}")]
+    public async Task<IActionResult> GetEvidenceArtifact(int executionId, string fileName)
+    {
+        var safeFileName = Path.GetFileName(fileName);
+        if (string.IsNullOrWhiteSpace(safeFileName) ||
+            !string.Equals(safeFileName, fileName, StringComparison.Ordinal))
+        {
+            return BadRequest();
+        }
+
+        var ext = Path.GetExtension(safeFileName).ToLowerInvariant();
+        var defaultContentType = ext switch
+        {
+            ".webm" => "video/webm",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".svg" => "image/svg+xml",
+            ".webp" => "image/webp",
+            _ => null
+        };
+        if (defaultContentType == null)
+            return NotFound();
+
+        var evidenceDir = Path.Combine(_env.ContentRootPath, "wwwroot", "evidencias", executionId.ToString());
+        var diskPath = Path.Combine(evidenceDir, safeFileName);
+        if (System.IO.File.Exists(diskPath))
+        {
+            return PhysicalFile(diskPath, defaultContentType, enableRangeProcessing: true);
+        }
+
+        var artifact = await _db.ExecutionArtifacts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.TestExecutionId == executionId && a.FileName == safeFileName);
+
+        if (artifact == null || artifact.Data.Length == 0)
+            return NotFound();
+
+        var mime = string.IsNullOrWhiteSpace(artifact.ContentType) ? defaultContentType : artifact.ContentType;
+        try
+        {
+            Directory.CreateDirectory(evidenceDir);
+            var tmpPath = diskPath + $".{Guid.NewGuid():N}.tmp";
+            await System.IO.File.WriteAllBytesAsync(tmpPath, artifact.Data);
+            System.IO.File.Move(tmpPath, diskPath, overwrite: true);
+            return PhysicalFile(diskPath, mime, enableRangeProcessing: true);
+        }
+        catch
+        {
+            return File(artifact.Data, mime, enableRangeProcessing: true);
+        }
+    }
+
     [HttpPost("github/create-branch")]
     public async Task<IActionResult> CreateBranch([FromBody] CreateBranchDto request)
     {

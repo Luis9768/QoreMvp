@@ -260,3 +260,17 @@ public class TestAuthProfileDto
     public string Environment { get; set; } = "Homologação";
     public string Description { get; set; } = string.Empty;
 }
+
+public class ExecutionArtifact
+{
+    [Key]
+    public int Id { get; set; }
+    public int TestExecutionId { get; set; }
+    [Required]
+    public string FileName { get; set; } = string.Empty;
+    [Required]
+    public string ContentType { get; set; } = "application/octet-stream";
+    public long SizeBytes { get; set; }
+    public byte[] Data { get; set; } = Array.Empty<byte>();
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}

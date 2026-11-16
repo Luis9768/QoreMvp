@@ -123,6 +123,22 @@ using (var scope = app.Services.CreateScope())
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"PassedCriteriosMinimos\" INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"FailedCriteriosMinimos\" INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"CriteriosMinimosAtingidos\" BOOLEAN DEFAULT FALSE;"); } catch { }
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS ""ExecutionArtifacts"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""TestExecutionId"" INTEGER NOT NULL,
+                    ""FileName"" TEXT NOT NULL,
+                    ""ContentType"" TEXT NOT NULL,
+                    ""SizeBytes"" BIGINT NOT NULL DEFAULT 0,
+                    ""Data"" BYTEA NOT NULL,
+                    ""CreatedAt"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ""IX_ExecutionArtifacts_TestExecutionId_FileName""
+                ON ""ExecutionArtifacts"" (""TestExecutionId"", ""FileName"");");
+        }
+        catch { }
     }
     else
     {
@@ -143,7 +159,54 @@ using (var scope = app.Services.CreateScope())
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN PassedCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN FailedCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN CriteriosMinimosAtingidos INTEGER DEFAULT 0;"); } catch { }
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS ExecutionArtifacts (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    TestExecutionId INTEGER NOT NULL,
+                    FileName TEXT NOT NULL,
+                    ContentType TEXT NOT NULL,
+                    SizeBytes INTEGER NOT NULL DEFAULT 0,
+                    Data BLOB NOT NULL,
+                    CreatedAt TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS IX_ExecutionArtifacts_TestExecutionId_FileName
+                ON ExecutionArtifacts (TestExecutionId, FileName);");
+        }
+        catch { }
     }
+
+    // Encerra execuções órfãs presas em Running/Pending após reinício ou redeploy do servidor
+    try
+    {
+        var orphaned = db.TestExecutions
+            .Include(e => e.Steps)
+            .Where(e => e.Status == "Running" || e.Status == "Pending")
+            .ToList();
+
+        if (orphaned.Count > 0)
+        {
+            foreach (var exec in orphaned)
+            {
+                exec.Status = "Failed";
+                exec.FinishedAt ??= DateTime.UtcNow;
+                exec.Logs = (exec.Logs ?? string.Empty).TrimEnd()
+                    + "\n[Sistema] Execução interrompida por reinício ou atualização do container.";
+
+                foreach (var st in exec.Steps.Where(s => s.Status is "Running" or "Pending"))
+                {
+                    st.ErrorDetails ??= st.Status == "Running"
+                        ? "Execução interrompida por reinício do servidor."
+                        : null;
+                    st.Status = st.Status == "Running" ? "Failed" : "Skipped";
+                }
+            }
+            db.SaveChanges();
+            Console.WriteLine($"[Startup] {orphaned.Count} execução(ões) órfã(s) marcada(s) como Failed após reinício.");
+        }
+    }
+    catch { }
 }
 
 // 6. Pipeline HTTP

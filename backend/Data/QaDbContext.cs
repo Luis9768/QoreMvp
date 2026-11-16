@@ -13,6 +13,7 @@ public class QaDbContext : DbContext
     public DbSet<TestPlan> TestPlans => Set<TestPlan>();
     public DbSet<TestExecution> TestExecutions => Set<TestExecution>();
     public DbSet<TestStepExecution> TestStepExecutions => Set<TestStepExecution>();
+    public DbSet<ExecutionArtifact> ExecutionArtifacts => Set<ExecutionArtifact>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -23,5 +24,9 @@ public class QaDbContext : DbContext
             .WithOne()
             .HasForeignKey(s => s.TestExecutionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ExecutionArtifact>()
+            .HasIndex(a => new { a.TestExecutionId, a.FileName })
+            .IsUnique();
     }
 }

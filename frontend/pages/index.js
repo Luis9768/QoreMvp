@@ -122,6 +122,8 @@ export default function Home() {
   const [backendStatus, setBackendStatus] = useState({ online: false, db: 'Verificando...', model: 'Quantum AI', playwright: null });
   const [liveFrameUrl, setLiveFrameUrl] = useState(null);
   const [videoSpeed, setVideoSpeed] = useState(1);
+  const [videoLoadError, setVideoLoadError] = useState(false);
+  const [videoRetryNonce, setVideoRetryNonce] = useState(0);
   const executionPanelRef = useRef(null);
   const videoRef = useRef(null);
 
@@ -258,26 +260,53 @@ export default function Home() {
     }
   }, [execution?.logs]);
 
+  const handleSelectExecution = async (item) => {
+    setVideoLoadError(false);
+    setExecution(item);
+    try {
+      const res = await fetch(`${API_BASE}/executions/${item.id}`, { cache: 'no-store' });
+      if (res.ok) {
+        const full = await res.json();
+        setExecution(full);
+      }
+    } catch (e) {}
+  };
+
   useEffect(() => {
-    if (!execution?.id || (execution.status !== 'Running' && execution.status !== 'Pending')) {
-      return;
-    }
+    if (!execution?.id) return;
+    const isTerminal = execution.status === 'Passed' || execution.status === 'Failed' || execution.status === 'PassedWithWarnings';
+    const isFinalized = isTerminal && !!execution.finishedAt && !!execution.videoUrl;
+    if (isFinalized) return;
+
+    let terminalGracePolls = 0;
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/executions/${execution.id}`);
+        const res = await fetch(`${API_BASE}/executions/${execution.id}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           setExecution(data);
-          if (data.status === 'Passed' || data.status === 'Failed' || data.status === 'PassedWithWarnings') {
-            setIsExecuting(false);
-            fetchHistory();
-            clearInterval(interval);
+          const doneStatus = data.status === 'Passed' || data.status === 'Failed' || data.status === 'PassedWithWarnings';
+          if (doneStatus) {
+            if (data.finishedAt && (data.videoUrl || terminalGracePolls >= 5)) {
+              setIsExecuting(false);
+              fetchHistory();
+              clearInterval(interval);
+            } else {
+              terminalGracePolls += 1;
+            }
           }
         }
       } catch (err) {}
     }, 1000);
     return () => clearInterval(interval);
-  }, [execution?.id, execution?.status]);
+  }, [execution?.id, execution?.status, execution?.finishedAt, execution?.videoUrl]);
+
+  useEffect(() => {
+    setVideoLoadError(false);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = videoSpeed;
+    }
+  }, [videoSpeed, execution?.id, execution?.videoUrl, videoRetryNonce]);
 
   useEffect(() => {
     if (!execution?.id || (execution.status !== 'Running' && execution.status !== 'Pending')) {
@@ -2771,7 +2800,7 @@ export default function Home() {
                       executionHistory.slice(0, 6).map(item => (
                         <div
                           key={item.id}
-                          onClick={() => setExecution(item)}
+                          onClick={() => handleSelectExecution(item)}
                           className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
                             execution?.id === item.id
                               ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-100'
@@ -2990,24 +3019,47 @@ export default function Home() {
                       )}
                     </div>
                     {execution.videoUrl ? (
-                      <div className="rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video">
-                        <video
-                          ref={videoRef}
-                          key={`${execution.id}-${execution.videoUrl}`}
-                          controls
-                          autoPlay
-                          muted
-                          playsInline
-                          onLoadedMetadata={() => {
-                            if (videoRef.current) videoRef.current.playbackRate = videoSpeed;
-                          }}
-                          className="w-full h-full object-contain"
-                        >
-                          <source
-                            src={`${BACKEND_HOST}${execution.videoUrl}?v=${encodeURIComponent(execution.finishedAt || execution.id)}`}
-                            type="video/webm"
+                      <div className="space-y-2">
+                        <div className="rounded-xl overflow-hidden border border-slate-800 bg-black aspect-video relative">
+                          <video
+                            ref={videoRef}
+                            key={`${execution.id}-${execution.videoUrl}-${videoRetryNonce}`}
+                            src={`${BACKEND_HOST}${execution.videoUrl}?v=${encodeURIComponent(execution.finishedAt || execution.id)}&r=${videoRetryNonce}`}
+                            controls
+                            autoPlay
+                            muted
+                            playsInline
+                            preload="metadata"
+                            onLoadedMetadata={() => {
+                              setVideoLoadError(false);
+                              if (videoRef.current) videoRef.current.playbackRate = videoSpeed;
+                            }}
+                            onError={() => setVideoLoadError(true)}
+                            className="w-full h-full object-contain"
                           />
-                        </video>
+                        </div>
+                        {videoLoadError && (
+                          <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-amber-950/40 border border-amber-500/30 text-[11px] text-amber-200">
+                            <span>Não foi possível reproduzir direto no player.</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setVideoRetryNonce(n => n + 1)}
+                                className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200"
+                              >
+                                Recarregar
+                              </button>
+                              <a
+                                href={`${BACKEND_HOST}${execution.videoUrl}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-semibold"
+                              >
+                                Abrir vídeo
+                              </a>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (execution.status === 'Running' || execution.status === 'Pending') ? (
                       <div className="relative rounded-xl overflow-hidden border border-cyan-500/30 bg-slate-950 aspect-video flex items-center justify-center">

@@ -118,6 +118,7 @@ public class AgentRunner
         IBrowser? browser = null;
         IBrowserContext? ctx = null;
         IPage? page = null;
+        var finalStatus = "Failed";
 
         try
         {
@@ -216,6 +217,7 @@ public class AgentRunner
                     new object[] { "Qore Bot Conectado", $"URL aberta: {Trunc(page.Url, 60)}", "action" });
                 var initShotPath = Path.Combine(evidenceDir, "passo_0_inicio.png");
                 await page.ScreenshotAsync(new PageScreenshotOptions { Path = initShotPath });
+                await SaveArtifactAsync(db, id, "passo_0_inicio.png", "image/png", initShotPath, _logger);
                 exec.InitialScreenshotUrl = $"/evidencias/{id}/passo_0_inicio.png";
                 await CaptureLiveFrameAsync(page, evidenceDir);
                 await Log($"📸 Print inicial da página real capturado: {exec.InitialScreenshotUrl}");
@@ -361,6 +363,7 @@ public class AgentRunner
                     await targetShotPage.ScreenshotAsync(new PageScreenshotOptions { Path = shotFullPath });
                     if (File.Exists(shotFullPath) && new FileInfo(shotFullPath).Length > 0)
                     {
+                        await SaveArtifactAsync(db, id, shotName, "image/png", shotFullPath, _logger);
                         step.ScreenshotFileName = shotName;
                         step.ScreenshotUrl = $"/evidencias/{id}/{shotName}";
                     }
@@ -405,25 +408,28 @@ public class AgentRunner
                 : (exec.FailedSteps == 0);
             exec.CriteriosMinimosAtingidos = allMinPassed;
 
+            // Mantém Status = "Running" até finalizar o vídeo no FFmpeg para o frontend não encerrar o polling antes de VideoUrl existir
             if (exec.FailedSteps == 0 && exec.PassedSteps == exec.TotalSteps)
             {
-                exec.Status = "Passed";
+                finalStatus = "Passed";
                 await Log($"\n🏆 SUÍTE APROVADA COM EXCELÊNCIA: 100% dos testes passaram com sucesso ({exec.PassedSteps}/{exec.TotalSteps})!");
             }
             else if (allMinPassed)
             {
-                exec.Status = "PassedWithWarnings";
+                finalStatus = "PassedWithWarnings";
                 await Log($"\n⚡ APROVADO COM RESSALVAS (CRITÉRIOS MÍNIMOS ATINGIDOS): 100% dos Critérios Mínimos de Aceitação ({exec.PassedCriteriosMinimos}/{exec.TotalCriteriosMinimos}) foram ATENDIDOS com sucesso! Houve {exec.FailedSteps} falha(s) secundária(s) não-bloqueante(s). Versão liberada para homologação / teste manual.");
             }
             else
             {
-                exec.Status = "Failed";
+                finalStatus = "Failed";
                 await Log($"\n🛑 SUÍTE REPROVADA (BLOQUEANTE): {exec.FailedCriteriosMinimos} de {exec.TotalCriteriosMinimos} Critério(s) Mínimo(s) de Aceitação falharam. Bloqueado para teste manual e release.");
             }
+
+            await Log("🎬 Finalizando gravação de vídeo (.webm) e salvando evidências...");
         }
         catch (Exception ex)
         {
-            exec.Status = "Failed";
+            finalStatus = "Failed";
             exec.CriteriosMinimosAtingidos = false;
             foreach (var s in exec.Steps.Where(s => s.Status is "Pending" or "Running"))
             {
@@ -438,16 +444,27 @@ public class AgentRunner
             {
                 if (ctx != null)
                 {
-                    // Mantém visualização final por 1.5s para gravar o desfecho completo no vídeo
-                    try { await Task.Delay(1500); } catch { }
+                    // Mantém visualização final por 1.2s para gravar o desfecho completo no vídeo
+                    try { await Task.Delay(1200); } catch { }
+
+                    var mainVideo = page?.Video;
+                    foreach (var openPage in ctx.Pages.ToList())
+                    {
+                        try
+                        {
+                            if (!openPage.IsClosed) await openPage.CloseAsync();
+                        }
+                        catch { }
+                    }
+
                     await ctx.CloseAsync(); // finaliza gravação do FFmpeg e grava o .webm no disco
 
                     var dest = Path.Combine(evidenceDir, "video.webm");
                     try
                     {
-                        if (page?.Video != null)
+                        if (mainVideo != null)
                         {
-                            var rawPath = await page.Video.PathAsync();
+                            var rawPath = await mainVideo.PathAsync();
                             if (!string.IsNullOrWhiteSpace(rawPath) && File.Exists(rawPath) && !string.Equals(rawPath, dest, StringComparison.OrdinalIgnoreCase))
                             {
                                 File.Move(rawPath, dest, true);
@@ -473,10 +490,11 @@ public class AgentRunner
 
                     if (File.Exists(dest) && new FileInfo(dest).Length > 0)
                     {
+                        await SaveArtifactAsync(db, id, "video.webm", "video/webm", dest, _logger);
                         var sizeKb = Math.Max(1, new FileInfo(dest).Length / 1024);
                         exec.VideoFileName = "video.webm";
                         exec.VideoUrl = $"/evidencias/{id}/video.webm";
-                        await Log($"🎬 Vídeo real gravado com sucesso: {exec.VideoUrl} ({sizeKb} KB)");
+                        await Log($"🎬 Vídeo real gravado e salvo com sucesso: {exec.VideoUrl} ({sizeKb} KB)");
                     }
                     else
                     {
@@ -491,8 +509,70 @@ public class AgentRunner
                 logBuffer.AppendLine($"[{DateTime.Now:HH:mm:ss}] Erro ao finalizar navegador: {ex.Message}");
             }
 
-            exec.FinishedAt = DateTime.UtcNow;
-            await Log($"Execução finalizada: {exec.Status} ({exec.PassedSteps}/{exec.TotalSteps} passos aprovados)");
+            try
+            {
+                exec.Status = finalStatus;
+                exec.FinishedAt = DateTime.UtcNow;
+                await Log($"Execução finalizada: {exec.Status} ({exec.PassedSteps}/{exec.TotalSteps} passos aprovados)");
+            }
+            catch (Exception saveEx)
+            {
+                _logger.LogError(saveEx, "[Execução {Id}] Erro ao persistir fechamento no banco", id);
+                try
+                {
+                    exec.Status = finalStatus;
+                    exec.FinishedAt ??= DateTime.UtcNow;
+                    await db.SaveChangesAsync();
+                }
+                catch { }
+            }
+        }
+    }
+
+    private static async Task SaveArtifactAsync(
+        QaDbContext db,
+        int executionId,
+        string fileName,
+        string contentType,
+        string filePath,
+        ILogger logger)
+    {
+        const long maxDbBytes = 100L * 1024 * 1024;
+        try
+        {
+            if (!File.Exists(filePath)) return;
+            var info = new FileInfo(filePath);
+            if (info.Length <= 0 || info.Length > maxDbBytes) return;
+
+            var bytes = await File.ReadAllBytesAsync(filePath);
+            var existing = await db.ExecutionArtifacts
+                .FirstOrDefaultAsync(a => a.TestExecutionId == executionId && a.FileName == fileName);
+
+            if (existing != null)
+            {
+                existing.ContentType = contentType;
+                existing.SizeBytes = bytes.LongLength;
+                existing.Data = bytes;
+                existing.CreatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                db.ExecutionArtifacts.Add(new ExecutionArtifact
+                {
+                    TestExecutionId = executionId,
+                    FileName = fileName,
+                    ContentType = contentType,
+                    SizeBytes = bytes.LongLength,
+                    Data = bytes,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[Execução {Id}] Falha ao persistir artefato {FileName} no banco (mantido em disco)", executionId, fileName);
         }
     }
 
