@@ -7,6 +7,7 @@ public interface IGeminiPlannerService
 {
     Task<(JsonNode? Plan, string? Model, string? Error)> GenerateTestPlanAsync(string targetUrl, string? swaggerUrl, string userPrompt);
     Task<(JsonNode? Plan, string? Model, string? Error)> GeneratePlanFromCommitAsync(string? targetUrl, string? swaggerUrl, Models.GitHubCommitInfo commit, string? additionalPrompt);
+    Task<(string? ReportJson, string? Model, string? Error)> GeneratePostTestReportAsync(Models.TestExecution execution);
 }
 
 public class GeminiPlannerService : IGeminiPlannerService
@@ -400,5 +401,111 @@ Objetivo do teste: {userPrompt}";
                 }),
             ["passos"] = steps
         };
+    }
+
+    private const string PostTestSystemPrompt = @"Você é um Arquiteto Chefe de Qualidade (Lead QA & Reliability Engineer) e Auditor de Qualidade de Software.
+Sua missão é realizar uma ANÁLISE PÓS-TESTE EXECUTIVA (Post-Mortem de Teste E2E) de uma execução de testes automatizados recém-concluída.
+Avalie objetivamente os pontos que deram certo (sucessos), os pontos que não deram certo (falhas, quebras e anomalias), deduza a Causa Raiz Técnica (RCA - Root Cause Analysis) e gere recomendações claras e práticas para os desenvolvedores (Dev) e engenheiros de QA.
+
+Diretrizes obrigatórias:
+1. 'veredito':
+   - 'Aprovado para Produção' (se todos os passos críticos passaram ou falhas forem cosméticas sem impacto funcional)
+   - 'Aprovado com Ressalvas' (se funcionalidades essenciais funcionaram, mas houve avisos, lentidão ou testes secundários falhos)
+   - 'Reprovado (Bloqueador Crítico)' (se etapas essenciais como login, checkout, submissão ou navegação falharam)
+2. 'scoreQualidade': Inteiro de 0 a 100 baseado na taxa de aprovação dos passos, cumprimento de critérios mínimos e gravidade das falhas.
+3. 'resumoExecutivo': Síntese executiva de 2 a 4 frases explicando a saúde geral da release/fluxo testado.
+4. 'pontosDeSucesso': Lista de sucessos constatados (o que deu certo):
+   - titulo: Nome sucinto do que funcionou
+   - detalhe: Descrição técnica do sucesso e comportamento do sistema
+   - passoRelacionado: Código do caso de teste (ex: 'TC-01') ou 'Geral'
+5. 'pontosDeFalha': Lista de falhas e anomalias (o que não deu certo):
+   - titulo: Título da falha
+   - severidade: 'Crítica', 'Alta', 'Média' ou 'Baixa'
+   - passoRelacionado: Código do caso de teste (ex: 'TC-04')
+   - erroDetectado: O que quebrou ou diverge do resultado esperado
+   - causaRaiz: Diagnóstico técnico do motivo mais provável (seletor ausente no DOM, timeout, validação backend, erro de rota)
+   - recomendacaoDev: Instrução prática de como o desenvolvedor pode consertar no código
+6. 'recomendacoesGerais': 2 a 4 recomendações para o time de engenharia.
+
+Responda ESTRITAMENTE em formato JSON:
+{
+  ""veredito"": ""Aprovado para Produção"",
+  ""scoreQualidade"": 95,
+  ""resumoExecutivo"": ""..."",
+  ""pontosDeSucesso"": [
+    {
+      ""titulo"": ""Autenticação Efetuada"",
+      ""detalhe"": ""O login respondeu com sucesso e o token JWT foi armazenado com transição de tela em 1.1s."",
+      ""passoRelacionado"": ""TC-01""
+    }
+  ],
+  ""pontosDeFalha"": [
+    {
+      ""titulo"": ""Botão Desabilitado no Envio"",
+      ""severidade"": ""Crítica"",
+      ""passoRelacionado"": ""TC-03"",
+      ""erroDetectado"": ""O botão #btn-salvar permaneceu desabilitado após preenchimento."",
+      ""causaRaiz"": ""A validação de campo obrigatório não disparou evento de change no React."",
+      ""recomendacaoDev"": ""Adicionar dispatchEvent(new Event('input')) ou ajustar estado de touched no hook de formulário.""
+    }
+  ],
+  ""recomendacoesGerais"": [
+    ""Adicionar testes de regressão visual para o modal de pagamento."",
+    ""Monitorar tempo de resposta do endpoint /api/v1/checkout.""
+  ]
+}";
+
+    public async Task<(string? ReportJson, string? Model, string? Error)> GeneratePostTestReportAsync(Models.TestExecution execution)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"URL ALVO: {execution.TargetUrl}");
+        sb.AppendLine($"OBJETIVO / PROMPT ORIGINAL: {execution.Prompt}");
+        sb.AppendLine($"STATUS FINAL: {execution.Status}");
+        sb.AppendLine($"TOTAL DE PASSOS: {execution.TotalSteps} (Aprovados: {execution.PassedSteps}, Falhas: {execution.FailedSteps})");
+        sb.AppendLine($"INÍCIO: {execution.StartedAt:dd/MM/yyyy HH:mm:ss} UTC");
+        if (execution.FinishedAt.HasValue)
+        {
+            var dur = execution.FinishedAt.Value - execution.StartedAt;
+            sb.AppendLine($"FIM: {execution.FinishedAt.Value:dd/MM/yyyy HH:mm:ss} UTC (Duração: {dur.TotalSeconds:F1}s)");
+        }
+        sb.AppendLine();
+        sb.AppendLine("DETALHAMENTO DOS PASSOS EXECUTADOS:");
+        foreach (var s in execution.Steps.OrderBy(x => x.StepNumber))
+        {
+            sb.AppendLine($"[{s.Codigo ?? $"TC-{s.StepNumber:D2}"}] {s.StepTitle}");
+            sb.AppendLine($"  • Ação: {s.Action} | Tipo: {s.Tipo ?? "Funcional"} | Prioridade: {s.Prioridade ?? "Alta"}");
+            sb.AppendLine($"  • Status: {s.Status}");
+            if (!string.IsNullOrWhiteSpace(s.ErrorDetails))
+                sb.AppendLine($"  • Erro / Motivo: {s.ErrorDetails}");
+            if (!string.IsNullOrWhiteSpace(s.ExecutedActions))
+                sb.AppendLine($"  • Ações no Navegador: {s.ExecutedActions}");
+            if (!string.IsNullOrWhiteSpace(s.ResultadoEsperado))
+                sb.AppendLine($"  • Critério de Aceite: {s.ResultadoEsperado}");
+            if (!string.IsNullOrWhiteSpace(s.VisitedUrl))
+                sb.AppendLine($"  • URL Navegada: {s.VisitedUrl}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(execution.Logs))
+        {
+            var logSnippet = execution.Logs.Length > 2500 ? execution.Logs[^2500..] : execution.Logs;
+            sb.AppendLine();
+            sb.AppendLine("ÚLTIMOS LOGS DO TERMINAL / NAVEGADOR:");
+            sb.AppendLine(logSnippet);
+        }
+
+        var (json, model, error) = await _gemini.GenerateJsonAsync(PostTestSystemPrompt, sb.ToString(), temperature: 0.2);
+        if (json == null) return (null, null, $"Gemini indisponível: {error}");
+
+        try
+        {
+            var parsed = JsonNode.Parse(json);
+            if (parsed == null)
+                return (null, model, "Resposta vazia da IA.");
+            return (json, model, null);
+        }
+        catch (Exception ex)
+        {
+            return (null, model, $"Resposta da IA não é JSON válido: {ex.Message}");
+        }
     }
 }

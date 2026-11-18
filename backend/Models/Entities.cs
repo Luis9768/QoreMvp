@@ -73,8 +73,37 @@ public class TestExecution
     public string? VideoUrl { get; set; }
     public string? InitialScreenshotUrl { get; set; }
     public string Logs { get; set; } = string.Empty;
+    public string? PostTestReportJson { get; set; }
 
     public List<TestStepExecution> Steps { get; set; } = new();
+}
+
+public class PostTestReportDto
+{
+    public string Veredito { get; set; } = "Pendente"; // "Aprovado para Produção", "Aprovado com Ressalvas", "Reprovado (Bloqueador)"
+    public int ScoreQualidade { get; set; } = 100; // 0 a 100
+    public string ResumoExecutivo { get; set; } = string.Empty;
+    public List<PostTestSuccessPointDto> PontosDeSucesso { get; set; } = new();
+    public List<PostTestFailurePointDto> PontosDeFalha { get; set; } = new();
+    public List<string> RecomendacoesGerais { get; set; } = new();
+    public DateTime GeradoEm { get; set; } = DateTime.UtcNow;
+}
+
+public class PostTestSuccessPointDto
+{
+    public string Titulo { get; set; } = string.Empty;
+    public string Detalhe { get; set; } = string.Empty;
+    public string? PassoRelacionado { get; set; }
+}
+
+public class PostTestFailurePointDto
+{
+    public string Titulo { get; set; } = string.Empty;
+    public string Severidade { get; set; } = "Alta"; // "Crítica", "Alta", "Média", "Baixa"
+    public string? PassoRelacionado { get; set; }
+    public string ErroDetectado { get; set; } = string.Empty;
+    public string CausaRaiz { get; set; } = string.Empty;
+    public string RecomendacaoDev { get; set; } = string.Empty;
 }
 
 public class TestStepExecution

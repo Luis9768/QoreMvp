@@ -514,6 +514,28 @@ public class AgentRunner
                 exec.Status = finalStatus;
                 exec.FinishedAt = DateTime.UtcNow;
                 await Log($"Execução finalizada: {exec.Status} ({exec.PassedSteps}/{exec.TotalSteps} passos aprovados)");
+                await db.SaveChangesAsync();
+
+                // Gera Relatório Pós-Análise com IA (o que deu certo, o que deu errado, RCA e recomendações)
+                try
+                {
+                    var planner = scope.ServiceProvider.GetRequiredService<IGeminiPlannerService>();
+                    var (reportJson, modelUsed, reportErr) = await planner.GeneratePostTestReportAsync(exec);
+                    if (!string.IsNullOrWhiteSpace(reportJson))
+                    {
+                        exec.PostTestReportJson = reportJson;
+                        await db.SaveChangesAsync();
+                        await Log($"🧠 Relatório Pós-Análise da IA gerado e salvo com sucesso ({modelUsed ?? "Quantum AI"})!");
+                    }
+                    else if (reportErr != null)
+                    {
+                        await Log($"   ℹ Relatório pós-teste adiado ({reportErr}).");
+                    }
+                }
+                catch (Exception repEx)
+                {
+                    _logger.LogWarning(repEx, "[Execução {Id}] Falha não bloqueante ao gerar relatório pós-teste com IA", id);
+                }
             }
             catch (Exception saveEx)
             {

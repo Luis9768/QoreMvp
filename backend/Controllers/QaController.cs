@@ -219,6 +219,30 @@ public class QaController : ControllerBase
         return exec == null ? NotFound() : Ok(exec);
     }
 
+    [HttpPost("executions/{id}/ai-report")]
+    public async Task<IActionResult> GenerateExecutionReport(int id)
+    {
+        var exec = await _db.TestExecutions
+            .Include(e => e.Steps.OrderBy(s => s.StepNumber))
+            .FirstOrDefaultAsync(e => e.Id == id);
+
+        if (exec == null) return NotFound(new { error = "Execução não encontrada." });
+
+        var (reportJson, model, err) = await _planner.GeneratePostTestReportAsync(exec);
+        if (reportJson == null)
+            return StatusCode(502, new { error = err ?? "Não foi possível gerar o relatório da IA no momento." });
+
+        exec.PostTestReportJson = reportJson;
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            executionId = exec.Id,
+            report = System.Text.Json.Nodes.JsonNode.Parse(reportJson),
+            modelUsed = model
+        });
+    }
+
     [HttpGet("executions/{id}/live")]
     public IActionResult GetLiveFrame(int id)
     {

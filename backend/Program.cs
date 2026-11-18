@@ -123,6 +123,7 @@ using (var scope = app.Services.CreateScope())
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"PassedCriteriosMinimos\" INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"FailedCriteriosMinimos\" INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"CriteriosMinimosAtingidos\" BOOLEAN DEFAULT FALSE;"); } catch { }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE \"TestExecutions\" ADD COLUMN IF NOT EXISTS \"PostTestReportJson\" TEXT;"); } catch { }
         try
         {
             db.Database.ExecuteSqlRaw(@"
@@ -159,6 +160,7 @@ using (var scope = app.Services.CreateScope())
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN PassedCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN FailedCriteriosMinimos INTEGER DEFAULT 0;"); } catch { }
         try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN CriteriosMinimosAtingidos INTEGER DEFAULT 0;"); } catch { }
+        try { db.Database.ExecuteSqlRaw("ALTER TABLE TestExecutions ADD COLUMN PostTestReportJson TEXT;"); } catch { }
         try
         {
             db.Database.ExecuteSqlRaw(@"

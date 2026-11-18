@@ -165,6 +165,9 @@ export default function Home() {
   const [executionHistory, setExecutionHistory] = useState([]);
   const [executionError, setExecutionError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [isGeneratingAiReport, setIsGeneratingAiReport] = useState(false);
+  const [aiReportError, setAiReportError] = useState(null);
+  const [copiedAiReport, setCopiedAiReport] = useState(false);
 
   const logTerminalRef = useRef(null);
 
@@ -834,6 +837,64 @@ export default function Home() {
       setIsExecuting(false);
       setExecutionError(`Erro de comunicação: ${err.message}`);
     }
+  };
+
+  const handleGenerateAiReport = async (execId) => {
+    if (!execId) return;
+    setIsGeneratingAiReport(true);
+    setAiReportError(null);
+    try {
+      const res = await fetch(`${API_BASE}/executions/${execId}/ai-report`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao gerar relatório de IA');
+      }
+      const rawReport = data.report ? JSON.stringify(data.report) : null;
+      setExecution(prev => prev ? { ...prev, postTestReportJson: rawReport } : prev);
+      fetchHistory();
+    } catch (err) {
+      setAiReportError(err.message || 'Erro ao comunicar com a IA');
+    } finally {
+      setIsGeneratingAiReport(false);
+    }
+  };
+
+  const handleCopyAiReportMarkdown = (report, exec) => {
+    if (!report) return;
+    const md = `### 🧠 Relatório Pós-Análise de Teste — Qore Analytics (IA Quantum)
+
+**Aplicação:** \`${exec?.targetUrl || 'N/A'}\`  
+**Data:** ${new Date().toLocaleString('pt-BR')}  
+**Veredito:** **${report.veredito || 'N/A'}** (Score de Qualidade: **${report.scoreQualidade ?? 0}/100**)
+
+#### 📋 Resumo Executivo
+${report.resumoExecutivo || 'N/A'}
+
+---
+
+#### 🟢 O que Deu Certo (Pontos de Sucesso)
+${(report.pontosDeSucesso || []).map(p => `- **${p.titulo}**${p.passoRelacionado ? ` [${p.passoRelacionado}]` : ''}: ${p.detalhe}`).join('\n') || '- Nenhum ponto de sucesso registrado.'}
+
+---
+
+#### 🔴 O que Não Deu Certo (Falhas & Anomalias)
+${(report.pontosDeFalha || []).map(p => `
+##### [${p.severidade || 'Alta'}] ${p.titulo} ${p.passoRelacionado ? `(${p.passoRelacionado})` : ''}
+- **Erro Detectado:** ${p.erroDetectado}
+- **Causa Raiz (RCA):** ${p.causaRaiz}
+- **💡 Recomendação para o Dev:** \`${p.recomendacaoDev}\`
+`).join('\n') || '- Nenhuma falha crítica detectada.'}
+
+---
+
+#### 🛠️ Recomendações Técnicas Gerais
+${(report.recomendacoesGerais || []).map(r => `- ${r}`).join('\n') || '- N/A'}
+`;
+    navigator.clipboard.writeText(md);
+    setCopiedAiReport(true);
+    setTimeout(() => setCopiedAiReport(false), 2500);
   };
 
   const handleGenerateAndExecute = async () => {
@@ -2882,6 +2943,221 @@ export default function Home() {
                     </span>
                   </div>
                 </div>
+
+                {/* Relatório Pós-Análise da IA Quantum */}
+                {(() => {
+                  let report = null;
+                  if (execution.postTestReportJson) {
+                    try {
+                      report = typeof execution.postTestReportJson === 'string'
+                        ? JSON.parse(execution.postTestReportJson)
+                        : execution.postTestReportJson;
+                    } catch (e) {
+                      report = null;
+                    }
+                  }
+
+                  return (
+                    <div className="rounded-2xl border border-purple-500/35 bg-gradient-to-b from-purple-950/30 via-slate-950/95 to-slate-950/95 p-5 space-y-4 shadow-xl shadow-purple-950/20">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-purple-500/20">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300">
+                            <Sparkles size={18} className="animate-pulse" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                              Relatório Executivo da IA Quantum
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold font-mono">
+                                Pós-Análise & RCA
+                              </span>
+                            </h4>
+                            <p className="text-xs text-slate-400">Diagnóstico inteligente dos pontos de sucesso, falhas detectadas, causa raiz e ações para o Dev.</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {report && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopyAiReportMarkdown(report, execution)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors"
+                            >
+                              {copiedAiReport ? <CheckCheck size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                              <span>{copiedAiReport ? 'Copiado p/ PR!' : 'Copiar p/ PR / Jira'}</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isGeneratingAiReport || execution.status === 'Running' || execution.status === 'Pending'}
+                            onClick={() => handleGenerateAiReport(execution.id)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 disabled:opacity-50 text-xs font-bold text-white transition-all shadow-lg shadow-purple-600/30"
+                          >
+                            <RefreshCw size={14} className={isGeneratingAiReport ? 'animate-spin' : ''} />
+                            <span>{isGeneratingAiReport ? 'Analisando Execução...' : report ? 'Reanalisar com IA' : 'Gerar Relatório de IA'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {aiReportError && (
+                        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2">
+                          <AlertCircle size={15} />
+                          <span>{aiReportError}</span>
+                        </div>
+                      )}
+
+                      {report ? (
+                        <div className="space-y-4">
+                          {/* Veredito e Score */}
+                          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 p-4 rounded-xl bg-slate-900/90 border border-slate-800">
+                            <div className="space-y-1.5 flex-1 min-w-0">
+                              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Veredito da Release</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs px-2.5 py-1 rounded-lg font-bold uppercase tracking-wide border ${
+                                  report.veredito?.toLowerCase().includes('aprovado para')
+                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                    : report.veredito?.toLowerCase().includes('ressalva')
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                    : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                }`}>
+                                  {report.veredito || 'Avaliação Concluída'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-300 leading-relaxed pt-0.5">{report.resumoExecutivo}</p>
+                            </div>
+
+                            <div className="flex items-center gap-3 shrink-0 self-end md:self-center border-t md:border-t-0 md:border-l border-slate-800 pt-3 md:pt-0 md:pl-5">
+                              <div className="text-right">
+                                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Score de Qualidade</span>
+                                <span className="text-xs text-slate-400">Confiabilidade E2E</span>
+                              </div>
+                              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl font-mono border shadow-inner ${
+                                (report.scoreQualidade ?? 0) >= 90
+                                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                                  : (report.scoreQualidade ?? 0) >= 70
+                                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                                  : 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                              }`}>
+                                {report.scoreQualidade ?? 0}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Grid: O que Deu Certo vs O que Não Deu Certo */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {/* O que deu Certo */}
+                            <div className="p-4 rounded-xl bg-slate-900/60 border border-emerald-500/25 space-y-3">
+                              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider pb-1 border-b border-emerald-500/10">
+                                <CheckCircle2 size={16} />
+                                <span>O Que Deu Certo (Pontos de Sucesso)</span>
+                                <span className="ml-auto text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300">
+                                  {report.pontosDeSucesso?.length || 0}
+                                </span>
+                              </div>
+
+                              <div className="space-y-2.5">
+                                {(report.pontosDeSucesso || []).map((p, idx) => (
+                                  <div key={idx} className="p-3 rounded-lg bg-slate-950/80 border border-slate-800/80 space-y-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <h6 className="text-xs font-semibold text-white">{p.titulo}</h6>
+                                      {p.passoRelacionado && (
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                          {p.passoRelacionado}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-300 leading-relaxed">{p.detalhe}</p>
+                                  </div>
+                                ))}
+                                {(!report.pontosDeSucesso || report.pontosDeSucesso.length === 0) && (
+                                  <p className="text-xs text-slate-400 py-2">Nenhum ponto de sucesso registrado.</p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* O que não deu Certo */}
+                            <div className="p-4 rounded-xl bg-slate-900/60 border border-rose-500/25 space-y-3">
+                              <div className="flex items-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider pb-1 border-b border-rose-500/10">
+                                <XCircle size={16} />
+                                <span>O Que Não Deu Certo (Falhas & Anomalias)</span>
+                                <span className="ml-auto text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-300">
+                                  {report.pontosDeFalha?.length || 0}
+                                </span>
+                              </div>
+
+                              <div className="space-y-2.5">
+                                {(report.pontosDeFalha || []).map((f, idx) => (
+                                  <div key={idx} className="p-3 rounded-lg bg-slate-950/80 border border-slate-800/80 space-y-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                                          f.severidade === 'Crítica' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
+                                          'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                        }`}>
+                                          {f.severidade || 'Falha'}
+                                        </span>
+                                        <h6 className="text-xs font-semibold text-white">{f.titulo}</h6>
+                                      </div>
+                                      {f.passoRelacionado && (
+                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">
+                                          {f.passoRelacionado}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="text-[11px] text-slate-300 space-y-1">
+                                      <div><strong className="text-rose-300">Erro:</strong> {f.erroDetectado}</div>
+                                      <div><strong className="text-amber-300">Causa Raiz (RCA):</strong> {f.causaRaiz}</div>
+                                    </div>
+
+                                    {f.recomendacaoDev && (
+                                      <div className="p-2 rounded bg-cyan-950/30 border border-cyan-500/20 text-[11px] text-cyan-200">
+                                        <strong className="text-cyan-300 block mb-0.5">💡 Recomendação para o Dev:</strong>
+                                        <code className="text-cyan-100">{f.recomendacaoDev}</code>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                                {(!report.pontosDeFalha || report.pontosDeFalha.length === 0) && (
+                                  <div className="p-4 text-center text-xs text-emerald-300 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                                    🎉 Nenhuma falha detectada! Todos os passos responderam dentro dos critérios de aceite.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Recomendações Gerais */}
+                          {report.recomendacoesGerais && report.recomendacoesGerais.length > 0 && (
+                            <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+                              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                                🛠️ Recomendações de Qualidade para o Próximo Ciclo:
+                              </span>
+                              <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside">
+                                {report.recomendacoesGerais.map((rec, idx) => (
+                                  <li key={idx} className="leading-relaxed">{rec}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl bg-slate-900/50 border border-dashed border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                          <div className="text-xs text-slate-400">
+                            Nenhum relatório pós-análise gerado ainda para esta execução. Clique no botão ao lado para analisar com a IA Quantum.
+                          </div>
+                          <button
+                            type="button"
+                            disabled={isGeneratingAiReport || execution.status === 'Running' || execution.status === 'Pending'}
+                            onClick={() => handleGenerateAiReport(execution.id)}
+                            className="px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-bold text-white transition-colors shrink-0"
+                          >
+                            {isGeneratingAiReport ? 'Analisando...' : 'Gerar Análise com IA'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Print Inicial da Aplicação (Passo 0) */}
                 {execution.initialScreenshotUrl && (
